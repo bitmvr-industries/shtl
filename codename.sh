@@ -2,7 +2,7 @@
 
 
 # Route Argument
-routeName="${1}"
+readonly routeName="${1}"
 
 # Route List
 readonly SWITCHBOARD='switchboard'
@@ -16,18 +16,17 @@ function shuttle::usage() {
 	echo ""
 }
 
-#if [ "$#" -eq 0 ]; then
-#	echo "No arguments were passed"
-#	echo " "
-#	echo "$(usage)"
-#fi
+if [ "$#" -eq 0 ]; then
+	echo "No arguments were passed"
+	echo "$(usage)"
+fi
 
 function shuttle::getRouteEntry() {
 	grep "$routeName" "$SWITCHBOARD"
 }
 
 function shuttle::getRoute() {
-	route=$(shuttle::getRouteEntry)
+	local route=$(shuttle::getRouteEntry)
 	echo "${route#*\:}"
 }
 
@@ -41,13 +40,22 @@ function shuttle::listRoutes() {
 	done < "$SWITCHBOARD" 
 }
 
-function addRoute() {	
-	currentDir="$(shuttle::getCurrentPath)"
-	providedPath="$2"
-	route="${providedPath:$currentDir}"
-	echo $providedPath
-	echo $currentDir
-	echo $route
+function shuttle::generateRoute() {	
+	local currentDir="$(shuttle::getCurrentPath)"
+	local providedPath="$2"
+	local route="${providedPath:-$currentDir}"
+	echo "${routeName}:${route}"
 }
 
-shuttle::getRouteEntry
+function shuttle::addRoute(){
+	shuttle::generateRoute "$@" >> $SWITCHBOARD
+}
+
+function shuttle::deleteRoute() {
+	sed -i '/"${routeName}"/d' $SWITCHBOARD
+}
+
+shuttle::deleteRoute "$routeName"
+
+# shuttle::addRoute "$@"
+
