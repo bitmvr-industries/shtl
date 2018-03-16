@@ -18,7 +18,7 @@ function shuttle::usage() {
 
 if [ "$#" -eq 0 ]; then
 	echo "No arguments were passed"
-	echo "$(usage)"
+	shuttle::usage
 fi
 
 function shuttle::getRouteEntry() {
@@ -26,7 +26,8 @@ function shuttle::getRouteEntry() {
 }
 
 function shuttle::getRoute() {
-	local route=$(shuttle::getRouteEntry)
+	local route
+	route=$(shuttle::getRouteEntry)
 	echo "${route#*\:}"
 }
 
@@ -41,7 +42,8 @@ function shuttle::listRoutes() {
 }
 
 function shuttle::generateRoute() {	
-	local currentDir="$(shuttle::getCurrentPath)"
+	local currentDir
+	currentDir="$(shuttle::getCurrentPath)"
 	local providedPath="$2"
 	local route="${providedPath:-$currentDir}"
 	echo "${routeName}:${route}"
@@ -52,10 +54,7 @@ function shuttle::addRoute(){
 }
 
 function shuttle::deleteRoute() {
-	sed -i '/"${routeName}"/d' $SWITCHBOARD
+	grep -v ^"${routeName}:" $SWITCHBOARD  > "$SWITCHBOARD.tmp" && mv "$SWITCHBOARD.tmp" $SWITCHBOARD
 }
 
 shuttle::deleteRoute "$routeName"
-
-# shuttle::addRoute "$@"
-
