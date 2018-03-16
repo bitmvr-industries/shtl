@@ -57,4 +57,3 @@ function shuttle::deleteRoute() {
 	grep -v ^"${routeName}:" $SWITCHBOARD  > "$SWITCHBOARD.tmp" && mv "$SWITCHBOARD.tmp" $SWITCHBOARD
 }
 
-shuttle::deleteRoute "$routeName"
