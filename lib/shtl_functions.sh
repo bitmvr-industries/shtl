@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Route List
-readonly SWITCHBOARD='./switchboard'
+readonly SWITCHBOARD="$HOME/.shuttle_switchboard"
 
 if [[ ! -f $SWITCHBOARD ]]; then
 	touch $SWITCHBOARD
