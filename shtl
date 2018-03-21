@@ -2,7 +2,7 @@
 
 source lib/shtl_functions.sh
 
-if [ "$#" -eq 0 ]; then
+if [[ "$#" -eq 0 ]]; then
    echo "No arguments were passed"
    shuttle::usage
 fi

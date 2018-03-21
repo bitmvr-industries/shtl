@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
 # Route List
-readonly SWITCHBOARD='switchboard'
+readonly SWITCHBOARD='./switchboard'
+
+if [[ ! -f $SWITCHBOARD ]]; then
+	touch $SWITCHBOARD
+fi
 
 function shuttle::usage() {
 	echo ""
