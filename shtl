@@ -35,7 +35,6 @@ while (( "$#" ));  do
 			if shuttle::routeNameExists "$1"; then
       	echo "Switching directory"
 				shuttle::route "$1"
-				ls -la	
 		else
 				echo "Invalid argument"
 				shuttle::usage
