@@ -11,20 +11,34 @@ while (( "$#" ));  do
 	case $1 in
 		-l|--list)
 			shuttle::listRoutes
-			shift
+			break
 			;;	
 		-a|--add)
 			shift
-			shuttle::addRoute $1 $2
+			if shuttle::routeNameExists "$1"; then
+				echo "It appears a route already exists with this name"
+			else
+				shuttle::addRoute "$1" "$2"
+			fi
 			break
 			;;
 		-d|--delete)
 			shift
-			shuttle::deleteRoute $1
+			shuttle::deleteRoute "$1"
+			break
+			;;
+		-h|--help)
+			shuttle::usage
 			break
 			;;
 		*)
-			shuttle::usage
+			if shuttle::routeNameExists "$1"; then
+      	shuttle::route "$1"
+			else
+				echo "Invalid argument"
+				shuttle::usage
+      fi
+      break
 			;;
 	esac
 done

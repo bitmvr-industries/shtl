@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-
-# Route Argument
-# readonly routeName="${1}"
-
 # Route List
 readonly SWITCHBOARD='switchboard'
 
@@ -16,18 +12,14 @@ function shuttle::usage() {
 	echo ""
 }
 
-#if [ "$#" -eq 0 ]; then
-#	echo "No arguments were passed"
-#	shuttle::usage
-#fi
-
 function shuttle::getRouteEntry() {
+	routeName="$1"
 	grep "$routeName" "$SWITCHBOARD"
 }
 
 function shuttle::getRoute() {
 	local route
-	route=$(shuttle::getRouteEntry)
+	route=$(shuttle::getRouteEntry "$1")
 	echo "${route#*\:}"
 }
 
@@ -56,6 +48,11 @@ function shuttle::generateRoute() {
 	echo "${routeName}:${route}"
 }
 
+function shuttle::routeNameExists(){
+	local routeName="$1"
+	grep -q -v ^"${routeName}:" $SWITCHBOARD
+}
+
 function shuttle::addRoute(){
 	shuttle::generateRoute "$@" >> $SWITCHBOARD
 }
@@ -69,4 +66,6 @@ function shuttle::updateRoute() {
 	echo "Hello from ${FUNCNAME[0]}"	
 }
 
-# shuttle::deleteRoute
+function shuttle::route(){
+	cd $(shuttle::getRoute "$1")
+}
