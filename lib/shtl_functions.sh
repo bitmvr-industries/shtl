@@ -50,7 +50,7 @@ function shuttle::generateRoute() {
 
 function shuttle::routeNameExists(){
 	local routeName="$1"
-	grep -q -v ^"${routeName}:" $SWITCHBOARD
+	grep -q "^${routeName}:" $SWITCHBOARD
 }
 
 function shuttle::addRoute(){
