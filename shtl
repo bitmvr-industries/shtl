@@ -2,9 +2,8 @@
 
 source lib/shtl_functions.sh
 
-if [[ "$#" -eq 0 ]]; then
-   echo "No arguments were passed"
-   shuttle::usage
+if [[ ! $1 ]]; then
+	shuttle::usage
 fi
 
 while (( "$#" ));  do
@@ -31,12 +30,20 @@ while (( "$#" ));  do
 			shuttle::usage
 			break
 			;;
+		-i|--init)
+			shuttle::init
+			break;;
+		-r|--refresh)
+			shuttle::switchboardRefresh
+			break;;
 		*)
 			if shuttle::routeNameExists "$1"; then
       	echo "Switching directory"
 				shuttle::route "$1"
-		else
-				echo "Invalid argument"
+			else
+				echo ""
+				echo "ERROR: INVALID ROUTE OR FLAG"
+				echo ""
 				shuttle::usage
       fi
       break
