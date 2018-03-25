@@ -30,6 +30,9 @@ while (( "$#" ));  do
 			shuttle::usage
 			break
 			;;
+		-m|--modify)
+			shuttle::modifyRouteName
+			break;;
 		-i|--init)
 			shuttle::init
 			break;;

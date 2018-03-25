@@ -67,7 +67,13 @@ function shuttle::routeNameExists(){
 }
 
 function shuttle::addRoute(){
-	shuttle::generateRoute "$@" >> "$SWITCHBOARD" && shuttle::switchboardRefresh
+	if [[ shuttle::generateRoute == ' ' ]]; then
+		shuttle::generateRoute "$@" >> "$SWITCHBOARD" && shuttle::switchboardRefresh
+	else
+		echo ''
+		echo 'ERROR: Please provide a route name'
+		echo ''
+	fi
 }
 
 function shuttle::deleteRoute() {
@@ -75,8 +81,8 @@ function shuttle::deleteRoute() {
 	grep -v "^${routeName}:" "$SWITCHBOARD"  > "$SWITCHBOARD.tmp" && mv "$SWITCHBOARD.tmp" "$SWITCHBOARD"
 }
 
-function shuttle::updateRoute() {
-	echo "Hello from ${FUNCNAME[0]}"	
+function shuttle::modifyRouteName() {
+	echo "This feature doesn't currently exist"
 }
 
 function shuttle::route(){
