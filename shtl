@@ -14,6 +14,12 @@ while (( "$#" ));  do
 			;;	
 		-a|--add)
 			shift
+			if [[ $# -eq 0 ]]; then
+				echo ''
+				echo 'ERROR: Please provide a route name'
+				echo ''
+				exit
+			fi
 			if shuttle::routeNameExists "$1"; then
 				echo "It appears a route already exists with this name"
 			else
@@ -32,13 +38,8 @@ while (( "$#" ));  do
 			;;
 		-m|--modify)
 			shuttle::modifyRouteName
-			break;;
-		-i|--init)
-			shuttle::init
-			break;;
-		-r|--refresh)
-			shuttle::switchboardRefresh
-			break;;
+			break
+			;;
 		*)
 			if shuttle::routeNameExists "$1"; then
       	echo "Switching directory"

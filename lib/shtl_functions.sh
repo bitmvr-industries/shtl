@@ -56,7 +56,9 @@ function shuttle::generateRoute() {
 	local currentDir
 	currentDir="$(shuttle::getCurrentPath)"
 	local routeName="$1"
+	#echo "Route Name: ${routeName}"
 	local providedPath="$2"
+	#echo "Provided Path: ${providedPath}"
 	local route="${providedPath:-$currentDir}"
 	echo "${routeName}:${route}"
 }
@@ -67,13 +69,7 @@ function shuttle::routeNameExists(){
 }
 
 function shuttle::addRoute(){
-	if [[ shuttle::generateRoute == ' ' ]]; then
 		shuttle::generateRoute "$@" >> "$SWITCHBOARD" && shuttle::switchboardRefresh
-	else
-		echo ''
-		echo 'ERROR: Please provide a route name'
-		echo ''
-	fi
 }
 
 function shuttle::deleteRoute() {
