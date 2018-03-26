@@ -108,6 +108,7 @@ function shuttle::modifyRouteName() {
 
 function shuttle::route(){
 	cd "$(shuttle::getRoute "$1")" || exit
+	shuttle::log "INFO" "Current directory is $(pwd)"
 }
 
 function shuttle::version(){
