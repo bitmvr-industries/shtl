@@ -14,21 +14,13 @@ while (( "$#" ));  do
 			;;	
 		-a|--add)
 			shift
-			if [[ $# -eq 0 ]]; then
-				echo ''
-				echo 'ERROR: Please provide a route name'
-				echo ''
-				exit
-			fi
-			if shuttle::routeNameExists "$1"; then
-				echo "It appears a route already exists with this name"
-			else
-				shuttle::addRoute "$1" "$2"
-			fi
+			shuttle::validateArguments "$@"
+			shuttle::addRoute "$1" "$2"
 			break
 			;;
 		-d|--delete)
 			shift
+			shuttle::validateArguments "$@"
 			shuttle::deleteRoute "$1"
 			break
 			;;
@@ -37,17 +29,19 @@ while (( "$#" ));  do
 			break
 			;;
 		-m|--modify)
+			#TODO
 			shuttle::modifyRouteName
+			break
+			;;
+		-v|--version)
+			shuttle::version
 			break
 			;;
 		*)
 			if shuttle::routeNameExists "$1"; then
-      	echo "Switching directory"
 				shuttle::route "$1"
 			else
-				echo ""
-				echo "ERROR: INVALID ROUTE OR FLAG"
-				echo ""
+				shuttle::log "ERROR" "The supplied flag or route name is invalid"
 				shuttle::usage
       fi
       break
