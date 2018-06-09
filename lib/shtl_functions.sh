@@ -5,7 +5,7 @@ readonly SWITCHBOARD="$HOME/.shuttle_switchboard"
 readonly USAGE="$(dirname "$0")"
 
 
-function shuttle::log() {
+shuttle::log() {
   local log_level="${1}"
   local msg="${2}"
   local log_entry=$(echo -e "\r\n$(basename "${0}") $(printf "%-7s" ["${log_level}"]) ${msg}\r\n\r\n")
@@ -13,24 +13,24 @@ function shuttle::log() {
 	echo -e "$log_entry"
 }
 
-function shuttle::validateArguments(){
+shuttle::validateArguments(){
 	if [[ $# -eq 0 ]]; then
 		shuttle::log "ERROR" "Please provide a route name"
 		exit
 	fi
 }
 
-function shuttle::init(){
+shuttle::init(){
 	if [[ ! -f $SWITCHBOARD ]]; then
 		touch "$SWITCHBOARD"
 	fi
 }
 
-function shuttle::switchboardRefresh() {
+shuttle::switchboardRefresh() {
   grep -v "^$" "$SWITCHBOARD" | sort --ignore-case  > "$SWITCHBOARD.tmp" && mv "$SWITCHBOARD.tmp" "$SWITCHBOARD" && echo "" >> "$SWITCHBOARD"
 }
 
-function shuttle::usage() {
+shuttle::usage() {
 	echo ""
 	echo "$(basename "$0") - Help"
 	echo ""
@@ -43,34 +43,34 @@ function shuttle::usage() {
 	echo ""
 }
 
-function shuttle::getRouteEntry() {
+shuttle::getRouteEntry() {
 	routeName="$1"
 	grep "$routeName" "$SWITCHBOARD"
 }
 
-function shuttle::getRoute() {
+shuttle::getRoute() {
 	local route
 	route=$(shuttle::getRouteEntry "$1")
 	echo "${route#*\:}"
 }
 
-function shuttle::getRouteNames(){
+shuttle::getRouteNames(){
 	for route in $(shuttle::getRouteEntry); do
 		echo "${route%:*}"
 	done
 }
 
-function shuttle::getCurrentPath() {
+shuttle::getCurrentPath() {
 	pwd
 }
 
-function shuttle::listRoutes() {
+shuttle::listRoutes() {
 	while IFS='' read -r route || [[ -n "$route" ]]; do
     	echo "$route"
 	done < "$SWITCHBOARD" 
 }
 
-function shuttle::generateRoute() {	
+shuttle::generateRoute() {	
 	local currentDir
 	currentDir="$(shuttle::getCurrentPath)"
 	local routeName="$1"
@@ -79,12 +79,12 @@ function shuttle::generateRoute() {
 	echo "${routeName}:${route}"
 }
 
-function shuttle::routeNameExists(){
+shuttle::routeNameExists(){
 	local routeName="$1"
 	grep -q "^${routeName}:" "$SWITCHBOARD"
 }
 
-function shuttle::addRoute(){
+shuttle::addRoute(){
 	if shuttle::routeNameExists "$1"; then
 		shuttle::log "ERROR" "It appears this route already exists in the switchboard"
 		return 1
@@ -93,7 +93,7 @@ function shuttle::addRoute(){
 	shuttle::generateRoute "$@" >> "$SWITCHBOARD" && shuttle::switchboardRefresh
 }
 
-function shuttle::deleteRoute() {
+shuttle::deleteRoute() {
 	local routeName="$1"
 	if shuttle::routeNameExists $routeName; then
 		grep -v "^${routeName}:" "$SWITCHBOARD"  > "$SWITCHBOARD.tmp" && mv "$SWITCHBOARD.tmp" "$SWITCHBOARD"
@@ -102,15 +102,15 @@ function shuttle::deleteRoute() {
 	fi
 }
 
-function shuttle::modifyRouteName() {
+shuttle::modifyRouteName() {
 	shuttle::log "WARN" "This feature doesn't currently exist"
 }
 
-function shuttle::route(){
+shuttle::route(){
 	cd "$(shuttle::getRoute "$1")" || exit
 	shuttle::log "INFO" "Current directory is $(pwd)"
 }
 
-function shuttle::version(){
+shuttle::version(){
 	cat "$(dirname $(basename "$0"))/VERSION"
 }
