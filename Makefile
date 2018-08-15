@@ -30,7 +30,7 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "$(TIMESTAMP) - Clean: Finished"
 
-install:
+install: build
 	@echo "$(TIMESTAMP) - Install: Starting"
 	@sudo mkdir -p $(INSTALL_DIR)
 	@sudo chown $(USER):admin $(INSTALL_DIR)
