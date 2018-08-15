@@ -2,9 +2,9 @@
 
 ## Install
 
-1. Clone this repository
-2. Change to the repository directory
-3. Execute: `make install`
+> The following assumes you are in the projects root directory.
+
+**Execute:** `make install`
 
 ## Verify Installation
 
