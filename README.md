@@ -2,7 +2,7 @@
 
 ## Install
 
-> The following assumes you are in the projects root directory.
+> The following assumes you are in the project's root directory.
 
 **Execute:** `make install`
 
