@@ -36,9 +36,9 @@ shuttle::usage() {
 	echo ""
 	echo "    -l | --list    Display available routes"
 	echo "    -h | --help    Display this information"
-	echo "    -a | --add     RouteName (Route) Add a route. Provide only the name unless you're not current in the desired route path"
-	echo "    -d | --delete  RouteName Delete a route via its route name"
-	echo "    -m | --modify  RouteName Delete a route via its route name"
+	echo "    -a | --add     ROUTE_NAME ROUTE Add a route. Provide only the name unless you're not current in the desired route path"
+	echo "    -d | --delete  ROUTE_NAME Delete a route via its route name"
+	echo "    -m | --modify  ROUTE_NAME ROUTE Modify a route via its route name"
 	echo "    -v | --version Prints current shtl version"
 	echo ""
 }
