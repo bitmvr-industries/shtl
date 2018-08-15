@@ -4,8 +4,7 @@
 
 1. Clone this repository
 2. Change to the repository directory
-3. Execute: `make build`
-4. Execute: `make install`
+3. Execute: `make install`
 
 ## Verify Installation
 
