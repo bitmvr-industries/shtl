@@ -19,9 +19,9 @@ shtl - Help
 
     -l | --list    Display available routes
     -h | --help    Display this information
-    -a | --add     RouteName (Route) Add a route. Provide only the name unless you're not current in the desired route path
-    -d | --delete  RouteName Delete a route via its route name
-    -m | --modify  RouteName Delete a route via its route name
+    -a | --add     ROUTE_NAME ROUTE Add a route. Provide only the name unless you're not current in the desired route path
+    -d | --delete  ROUTE_NAME Delete a route via its route name
+    -m | --modify  ROUTE_NAME ROUTE Modify a route via its route name
     -v | --version Prints current shtl version
 
 ```
