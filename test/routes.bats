@@ -58,7 +58,7 @@ load test_helper
 }
 
 @test "add rejects names that are subcommands" {
-	for name in add remove rm list ls clean persist path init help version; do
+	for name in add update remove rm list ls clean persist path init help version; do
 		run shtl add "$name" "$DIR_A"
 		[ "$status" -eq 1 ]
 	done
@@ -92,6 +92,77 @@ load test_helper
 	[ "$output" = "$DIR_A" ]
 	run shtl path 'x\y'
 	[ "$output" = "$DIR_B" ]
+}
+
+# Relative paths are stored as absolute paths
+
+@test "add stores relative paths as absolute paths" {
+	cd "$DIR_A"
+	shtl add dot .
+	shtl add parent ..
+	shtl add sub ./x/../y/
+	[ "$(routes)" = "dot[]:$DIR_A"$'\n'"parent[]:$BATS_TEST_TMPDIR"$'\n'"sub[]:$DIR_A/y" ]
+}
+
+@test "add removes extra slashes and dot segments from absolute paths" {
+	shtl add work "$DIR_A//./"
+	[ "$(routes)" = "work[]:$DIR_A" ]
+}
+
+@test "add stores a missing relative path as absolute with --persist" {
+	cd "$DIR_A"
+	shtl add later not/yet --persist
+	[ "$(routes)" = "later[persist]:$DIR_A/not/yet" ]
+}
+
+# update
+
+@test "update points a route at a new path" {
+	shtl add work "$DIR_A"
+	run shtl update work "$DIR_B"
+	[ "$status" -eq 0 ]
+	[[ $output == *"now points to $DIR_B"* ]]
+	[ "$(routes)" = "work[]:$DIR_B" ]
+}
+
+@test "update defaults to the current directory" {
+	shtl add work "$DIR_A"
+	cd "$DIR_B"
+	shtl update work
+	[ "$(routes)" = "work[]:$DIR_B" ]
+}
+
+@test "update stores relative paths as absolute paths" {
+	shtl add work "$DIR_A"
+	cd "$DIR_A"
+	shtl update work ../b
+	[ "$(routes)" = "work[]:$DIR_B" ]
+}
+
+@test "update keeps the route's flags" {
+	shtl add work "$DIR_A" --persist
+	shtl update work "$DIR_B"
+	[ "$(routes)" = "work[persist]:$DIR_B" ]
+}
+
+@test "update only touches the named route" {
+	shtl add axb "$DIR_A"
+	shtl add a.b "$DIR_A"
+	shtl update a.b "$DIR_B"
+	[ "$(routes)" = "a.b[]:$DIR_B"$'\n'"axb[]:$DIR_A" ]
+}
+
+@test "update fails for an unknown route" {
+	run shtl update nope "$DIR_A"
+	[ "$status" -eq 1 ]
+	[[ $output == *"does not exist"* ]]
+	[ -z "$(routes)" ]
+}
+
+@test "update requires a name" {
+	run shtl update
+	[ "$status" -eq 1 ]
+	[[ $output == *"Please provide a route name"* ]]
 }
 
 # remove
@@ -131,6 +202,25 @@ load test_helper
 	run --separate-stderr shtl ls
 	[ "$status" -eq 0 ]
 	[ "$output" = "a       $DIR_A"$'\n'"longer  $DIR_B  (persist)" ]
+}
+
+@test "list warns about routes named after a command" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v2" "update[]:$DIR_A" "work[]:$DIR_B" > "$ROUTES_FILE"
+	run --separate-stderr shtl list
+	[ "$status" -eq 0 ]
+	[[ $stderr == *'Route "update" has the same name as a shtl command'* ]]
+	[[ $stderr != *'"work"'* ]]
+	run --separate-stderr shtl path update
+	[ "$output" = "$DIR_A" ]
+}
+
+@test "list --names doesn't warn, since completion reads it" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v2" "update[]:$DIR_A" > "$ROUTES_FILE"
+	run --separate-stderr shtl list --names
+	[ "$output" = "update" ]
+	[ -z "$stderr" ]
 }
 
 @test "list --names prints only names" {

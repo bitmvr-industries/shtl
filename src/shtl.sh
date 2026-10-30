@@ -23,6 +23,10 @@ case $subcommand in
 		shtl_validate_arguments "${routeArgs[@]}"
 		shtl_add_route "${routeArgs[0]}" "${routeArgs[1]}" "$persist"
 		;;
+	update)
+		shtl_validate_arguments "$@"
+		shtl_update_route "$1" "$2"
+		;;
 	remove|rm)
 		shtl_validate_arguments "$@"
 		shtl_delete_route "$1"

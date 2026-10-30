@@ -56,6 +56,7 @@ shtl - Help
     ROUTE_NAME                      Jump to a route (needs the shell function, see init)
     add NAME [PATH] [-p|--persist]  Add a route. PATH defaults to the current directory
                                     --persist keeps the route even if its directory doesn't exist (clean skips it)
+    update NAME [PATH]              Point a route at a new path. PATH defaults to the current directory
     remove | rm NAME                Remove a route
     list | ls                       List routes
     clean                           Interactively remove routes whose directories no longer exist

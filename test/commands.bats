@@ -52,6 +52,13 @@ load test_helper
 
 # init: the shell function
 
+# Each shell parses the whole init output, including the other shell's branch
+@test "the init output is valid bash and zsh" {
+	shtl init | bash -n
+	command -v zsh > /dev/null || skip "zsh not installed"
+	shtl init | zsh -n
+}
+
 @test "the shell function changes directory to a route in bash" {
 	shtl add work "$DIR_A"
 	run bash -c 'eval "$(shtl init)" && shtl work && pwd'
@@ -91,4 +98,20 @@ load test_helper
 @test "log messages print backslashes literally" {
 	run --separate-stderr shtl path 'x\new'
 	[ "$stderr" = 'shtl [ERROR] Route "x\new" does not exist' ]
+}
+
+@test "the shell function passes update through" {
+	shtl add work "$DIR_A"
+	run bash -c 'cd "$1" && eval "$(shtl init)" && shtl update work && shtl path work' _ "$DIR_B"
+	[ "$status" -eq 0 ]
+	[[ $output == *"$DIR_B" ]]
+}
+
+@test "tab completion offers routes and directories for update in bash" {
+	shtl add work "$DIR_A"
+	run bash -c 'eval "$(shtl init)"
+		COMP_WORDS=(shtl update ""); COMP_CWORD=2; _shtl; echo "${COMPREPLY[*]}"
+		cd "$1"; COMP_WORDS=(shtl update work ""); COMP_CWORD=3; _shtl; echo "${COMPREPLY[*]}"' _ "$BATS_TEST_TMPDIR"
+	[ "${lines[0]}" = "work" ]
+	[[ ${lines[1]} == *a* && ${lines[1]} == *b* ]]
 }

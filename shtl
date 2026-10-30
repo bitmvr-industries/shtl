@@ -14,7 +14,7 @@ readonly SHTL_VERSION="0.5.0"
 
 # Subcommands. Route names can't use these, and the shell function from
 # `shtl init` passes them straight through to the script.
-readonly SHTL_COMMANDS="add remove rm list ls clean persist path init help version"
+readonly SHTL_COMMANDS="add update remove rm list ls clean persist path init help version"
 
 
 # Prints "shtl [LEVEL] message" to stderr. The message is printed as-is, so
@@ -108,6 +108,7 @@ shtl_usage() {
 	echo "    ROUTE_NAME                      Jump to a route (needs the shell function, see init)"
 	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH defaults to the current directory"
 	echo "                                    --persist keeps the route even if its directory doesn't exist (clean skips it)"
+	echo "    update NAME [PATH]              Point a route at a new path. PATH defaults to the current directory"
 	echo "    remove | rm NAME                Remove a route"
 	echo "    list | ls                       List routes"
 	echo "    clean                           Interactively remove routes whose directories no longer exist"
@@ -168,6 +169,24 @@ shtl_get_current_path() {
 	pwd
 }
 
+# Makes a path absolute and removes ".", ".." and extra slashes, without
+# touching the filesystem: the directory may not exist yet (--persist), and
+# symlinks are kept as typed, the same way pwd reports them
+shtl_absolute_path() {
+	local path="$1" part
+	local parts=() kept=()
+	[[ $path != /* ]] && path="$(shtl_get_current_path)/$path"
+	IFS='/' read -r -a parts <<< "$path"
+	for part in "${parts[@]}"; do
+		case $part in
+			''|.) ;;
+			..) [[ ${#kept[@]} -gt 0 ]] && unset 'kept[${#kept[@]}-1]' ;;
+			*) kept+=("$part") ;;
+		esac
+	done
+	(IFS='/'; printf '/%s\n' "${kept[*]}")
+}
+
 shtl_has_routes() {
 	[[ -n $(shtl_get_entries) ]]
 }
@@ -194,6 +213,12 @@ shtl_list_routes() {
 	for i in "${!names[@]}"; do
 		printf '%-*s  %s%s\n' "$width" "${names[i]}" "${paths[i]}" "${marks[i]}"
 	done
+	# Routes added before a command of the same name existed can't be jumped to
+	for name in "${names[@]}"; do
+		if shtl_is_command "$name"; then
+			shtl_log "WARN" "Route \"${name}\" has the same name as a shtl command, so shtl ${name} runs the command. Use: cd \"\$(shtl path ${name})\", or remove it and add it under a new name"
+		fi
+	done
 }
 
 shtl_generate_route() {
@@ -202,7 +227,8 @@ shtl_generate_route() {
 	local routeName="$1"
 	local providedPath="$2"
 	local persist="$3"
-	local route="${providedPath:-$currentDir}"
+	local route
+	route="$(shtl_absolute_path "${providedPath:-$currentDir}")"
 	shtl_format_entry "$routeName" "$persist" "$route"
 }
 
@@ -241,6 +267,22 @@ shtl_delete_route() {
 		shtl_log "ERROR" "Could not remove route \"${routeName}\". The route does not exist"
 		return 1
 	fi
+}
+
+# Points an existing route at a new path, keeping its flags
+shtl_update_route() {
+	local routeName="$1"
+	local providedPath="$2"
+	local entry route
+	if ! shtl_route_name_exists "$routeName"; then
+		shtl_log "ERROR" "Could not update route \"${routeName}\". The route does not exist"
+		return 1
+	fi
+	entry="$(shtl_get_route_entry "$routeName")"
+	route="$(shtl_absolute_path "${providedPath:-$(shtl_get_current_path)}")"
+	shtl_remove_route_entry "$routeName"
+	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes
+	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
 }
 
 # Draws the clean checklist. Reads names, paths, selected, cursor and width
@@ -425,9 +467,9 @@ if [ -n "$ZSH_VERSION" ]; then
 			compadd -a routes
 		elif (( CURRENT == 3 )); then
 			case "${words[2]}" in
-				remove|rm|persist|path) compadd -a routes ;;
+				remove|rm|update|persist|path) compadd -a routes ;;
 			esac
-		elif (( CURRENT == 4 )) && [[ "${words[2]}" == add ]]; then
+		elif (( CURRENT == 4 )) && [[ "${words[2]}" == add || "${words[2]}" == update ]]; then
 			_files -/
 		fi
 	}
@@ -442,9 +484,9 @@ elif [ -n "$BASH_VERSION" ]; then
 			words="__SHTL_COMMANDS__ $(command shtl list --names)"
 		elif [ "$COMP_CWORD" -eq 2 ]; then
 			case "${COMP_WORDS[1]}" in
-				remove|rm|persist|path) words="$(command shtl list --names)" ;;
+				remove|rm|update|persist|path) words="$(command shtl list --names)" ;;
 			esac
-		elif [ "$COMP_CWORD" -eq 3 ] && [ "${COMP_WORDS[1]}" = add ]; then
+		elif [ "$COMP_CWORD" -eq 3 ] && { [ "${COMP_WORDS[1]}" = add ] || [ "${COMP_WORDS[1]}" = update ]; }; then
 			COMPREPLY=($(compgen -d -- "$cur"))
 			return
 		fi
@@ -485,6 +527,10 @@ case $subcommand in
 		done
 		shtl_validate_arguments "${routeArgs[@]}"
 		shtl_add_route "${routeArgs[0]}" "${routeArgs[1]}" "$persist"
+		;;
+	update)
+		shtl_validate_arguments "$@"
+		shtl_update_route "$1" "$2"
 		;;
 	remove|rm)
 		shtl_validate_arguments "$@"
