@@ -11,13 +11,13 @@ shtl_log() {
   local msg="${2}"
   local log_entry=$(echo -e "\r\n$(basename "${0}") $(printf "%-7s" ["${log_level}"]) ${msg}\r\n\r\n")
 	
-	echo -e "$log_entry"
+	echo -e "$log_entry" >&2
 }
 
 shtl_validate_arguments(){
 	if [[ $# -eq 0 ]]; then
 		shtl_log "ERROR" "Please provide a route name"
-		exit
+		exit 1
 	fi
 }
 
@@ -45,6 +45,8 @@ shtl_usage() {
 	echo "    -d | --delete  ROUTE_NAME Delete a route via its route name"
 	echo "    -m | --modify  ROUTE_NAME ROUTE Modify a route via its route name"
 	echo "    -v | --version Prints current shtl version"
+	echo "         --path    ROUTE_NAME Print a route's path (e.g. cp file \"\$(shtl --path work)\")"
+	echo "         init      Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
 	echo ""
 }
 
@@ -71,9 +73,10 @@ shtl_get_route() {
 }
 
 shtl_get_route_names(){
-	for route in $(shtl_get_route_entry); do
-		echo "${route%:*}"
-	done
+	local entry
+	while IFS='' read -r entry || [[ -n "$entry" ]]; do
+		[[ -n $entry ]] && echo "${entry%%:*}"
+	done < "$ROUTES_FILE"
 }
 
 shtl_get_current_path() {
@@ -106,6 +109,11 @@ shtl_route_name_exists(){
 }
 
 shtl_add_route(){
+	# Names can't start with "-" (flags), contain ":" (the separator), or be "init"
+	if [[ $1 == -* || $1 == *:* || $1 == "init" ]]; then
+		shtl_log "ERROR" "Route names can't start with \"-\", contain \":\", or be \"init\""
+		return 1
+	fi
 	if shtl_route_name_exists "$1"; then
 		shtl_log "ERROR" "It appears this route already exists in your routes"
 		return 1
@@ -251,9 +259,82 @@ shtl_modify_route_name() {
 	shtl_log "WARN" "This feature doesn't currently exist"
 }
 
+# Prints only the route's path, for the shell function and for use in scripts
+shtl_print_path(){
+	local routeName="$1"
+	local path
+	if ! shtl_route_name_exists "$routeName"; then
+		shtl_log "ERROR" "Route \"${routeName}\" does not exist"
+		return 1
+	fi
+	path="$(shtl_get_route "$routeName")"
+	if [[ ! -d $path ]]; then
+		shtl_log "ERROR" "Route \"${routeName}\" points to ${path}, which doesn't exist"
+		return 1
+	fi
+	echo "$path"
+}
+
+# A script can't change its parent shell's directory. Without the shell
+# function from `shtl init`, print the path and explain how to set it up.
 shtl_route(){
-	cd "$(shtl_get_route "$1")" || exit
-	shtl_log "INFO" "Current directory is $(pwd)"
+	shtl_print_path "$1" || return 1
+	shtl_log "WARN" "shtl can't change directory without its shell function. Add this to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
+}
+
+# Prints the shell function and tab completion. Works in bash and zsh:
+# eval "$(shtl init)"
+shtl_print_init(){
+	cat <<'EOF'
+shtl() {
+	case "$1" in
+		""|-*|init) command shtl "$@" ;;
+		*)
+			local dest
+			dest="$(command shtl --path "$1")" && cd -- "$dest"
+			;;
+	esac
+}
+
+if [ -n "$ZSH_VERSION" ]; then
+	_shtl() {
+		local -a routes
+		routes=(${(f)"$(command shtl --names)"})
+		if (( CURRENT == 2 )); then
+			if [[ $PREFIX == -* ]]; then
+				compadd -- -a --add -c --clean -d --delete -h --help -l --list -p --persist --path -v --version
+			else
+				compadd -a routes
+			fi
+		elif (( CURRENT == 3 )); then
+			case "${words[2]}" in
+				-d|--delete|-p|--persist|--path) compadd -a routes ;;
+			esac
+		fi
+	}
+	if (( $+functions[compdef] )); then
+		compdef _shtl shtl
+	fi
+elif [ -n "$BASH_VERSION" ]; then
+	_shtl() {
+		local cur="${COMP_WORDS[COMP_CWORD]}"
+		local prev="${COMP_WORDS[COMP_CWORD-1]}"
+		local words=""
+		if [ "$COMP_CWORD" -eq 1 ]; then
+			case "$cur" in
+				-*) words="-a --add -c --clean -d --delete -h --help -l --list -p --persist --path -v --version" ;;
+				*) words="$(command shtl --names)" ;;
+			esac
+		elif [ "$COMP_CWORD" -eq 2 ]; then
+			case "$prev" in
+				-d|--delete|-p|--persist|--path) words="$(command shtl --names)" ;;
+			esac
+		fi
+		COMPREPLY=($(compgen -W "$words" -- "$cur"))
+	}
+	complete -F _shtl shtl
+fi
+EOF
 }
 
 shtl_version(){

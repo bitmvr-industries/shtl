@@ -57,12 +57,28 @@ while (( "$#" ));  do
 			shtl_version
 			break
 			;;
+		--path)
+			shift
+			shtl_validate_arguments "$@"
+			shtl_print_path "$1"
+			exit
+			;;
+		--names)
+			shtl_get_route_names
+			break
+			;;
+		init)
+			shtl_print_init
+			break
+			;;
 		*)
 			if shtl_route_name_exists "$1"; then
 				shtl_route "$1"
+				exit
 			else
 				shtl_log "ERROR" "The supplied flag or route name is invalid"
 				shtl_usage
+				exit 1
       fi
       break
 			;;
