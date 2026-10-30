@@ -1,5 +1,7 @@
 # SHTL
 
+[![CI](https://github.com/bitmvr/shtl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bitmvr/shtl/actions/workflows/ci.yml)
+
 ## Install
 
 > The following assumes you are in the project's root directory.
