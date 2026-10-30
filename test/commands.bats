@@ -78,3 +78,17 @@ load test_helper
 	[[ $output == *"status=1"* ]]
 	[[ $output == *"$DIR_B" ]]
 }
+
+# Log messages
+
+@test "log messages are one plain line on stderr" {
+	run --separate-stderr shtl path nope
+	[ "$status" -eq 1 ]
+	[ -z "$output" ]
+	[ "$stderr" = 'shtl [ERROR] Route "nope" does not exist' ]
+}
+
+@test "log messages print backslashes literally" {
+	run --separate-stderr shtl path 'x\new'
+	[ "$stderr" = 'shtl [ERROR] Route "x\new" does not exist' ]
+}

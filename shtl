@@ -17,13 +17,12 @@ readonly SHTL_VERSION="0.4.0"
 readonly SHTL_COMMANDS="add remove rm list ls clean persist path init help version"
 
 
+# Prints "shtl [LEVEL] message" to stderr. The message is printed as-is, so
+# backslashes in route names or paths aren't treated as escapes.
 shtl_log() {
 	local log_level="${1}"
 	local msg="${2}"
-	local log_entry
-	log_entry=$(echo -e "\r\n$(basename "${0}") $(printf "%-7s" ["${log_level}"]) ${msg}\r\n\r\n")
-
-	echo -e "$log_entry" >&2
+	printf '%s %-7s %s\n' "$(basename "${0}")" "[${log_level}]" "${msg}" >&2
 }
 
 shtl_validate_arguments(){
