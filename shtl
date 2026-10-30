@@ -5,7 +5,7 @@ readonly CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shtl"
 readonly ROUTES_FILE="$CONFIG_DIR/routes"
 
 # Replaced with the contents of VERSION by `make build`
-readonly SHTL_VERSION="0.3.0"
+readonly SHTL_VERSION="0.4.0"
 
 # Subcommands. Route names can't use these, and the shell function from
 # `shtl init` passes them straight through to the script.
