@@ -6,6 +6,12 @@
 
 **Execute:** `make install`
 
+This installs `shtl` to `~/.local/bin` with no `sudo`. Make sure that
+directory is on your `PATH` (the install warns you if it isn't). To install
+somewhere else, set `PREFIX`, e.g. `sudo make install PREFIX=/usr/local`.
+
+To remove it: `make uninstall` (with the same `PREFIX`, if you set one).
+
 ## Shell Integration
 
 A script can't change your shell's directory, so `shtl` ships a small shell

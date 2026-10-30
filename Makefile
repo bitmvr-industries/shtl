@@ -11,8 +11,10 @@ SRC_FILES=`find "./src" -type f -name "*.sh"`
 TIMESTAMP=`date -u +"%Y-%m-%dT%H:%M:%SZ"`
 EXECUTABLE="shtl"
 BUILD_DIR="build"
-INSTALL_DIR="/usr/local/shtl"
-SYMLINK_DIR="/usr/local/bin"
+# Per-user install, no sudo. Override for a system-wide install:
+# sudo make install PREFIX=/usr/local
+PREFIX ?= $(HOME)/.local
+BIN_DIR=$(PREFIX)/bin
 
 build:
 	@echo "$(TIMESTAMP) - Build: Starting"
@@ -32,17 +34,21 @@ clean:
 
 install: build
 	@echo "$(TIMESTAMP) - Install: Starting"
-	@sudo mkdir -p $(INSTALL_DIR)
-	@sudo chown $(USER):admin $(INSTALL_DIR)
-	@cp $(EXECUTABLE) $(INSTALL_DIR)
-	@sudo chown $(USER):admin $(INSTALL_DIR)/$(EXECUTABLE)
-	@ln -sf "$(INSTALL_DIR)/$(EXECUTABLE)" "$(SYMLINK_DIR)/$(EXECUTABLE)"
+	@mkdir -p "$(BIN_DIR)"
+	@cp $(EXECUTABLE) "$(BIN_DIR)/$(EXECUTABLE)"
+	@echo "$(TIMESTAMP) - Install: Installed to $(BIN_DIR)/shtl"
+	@case ":$$PATH:" in *":$(BIN_DIR):"*) ;; *) echo "$(TIMESTAMP) - Install: Warning: $(BIN_DIR) is not on your PATH" ;; esac
 	@echo "$(TIMESTAMP) - Install: Complete"
+
+uninstall:
+	@echo "$(TIMESTAMP) - Uninstall: Starting"
+	@rm -f "$(BIN_DIR)/$(EXECUTABLE)"
+	@echo "$(TIMESTAMP) - Uninstall: Complete"
 
 lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
 	@shellcheck -x $(CONF_FILES) $(LIB_FILES) $(SRC_FILES)
 	@echo "$(TIMESTAMP) - Lint: Finished"
 
-.PHONY: build clean install lint
+.PHONY: build clean install uninstall lint
 
