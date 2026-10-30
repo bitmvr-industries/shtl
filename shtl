@@ -59,9 +59,13 @@ shtl_usage() {
 	echo ""
 }
 
+# Names are matched as literal strings, not regexes, so "a.b" can't match "axb"
 shtl_get_route_entry() {
-	routeName="$1"
-	grep "^${routeName}:" "$ROUTES_FILE"
+	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] ":") == 1' "$ROUTES_FILE"
+}
+
+shtl_remove_route_entry() {
+	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] ":") != 1' "$ROUTES_FILE" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
 }
 
 # Strips the route name and any :persist marker from an entry
@@ -125,8 +129,7 @@ shtl_generate_route() {
 }
 
 shtl_route_name_exists(){
-	local routeName="$1"
-	grep -q "^${routeName}:" "$ROUTES_FILE"
+	[[ -n $(shtl_get_route_entry "$1") ]]
 }
 
 shtl_is_command(){
@@ -142,15 +145,14 @@ shtl_add_route(){
 	if shtl_route_name_exists "$1"; then
 		shtl_log "ERROR" "It appears this route already exists in your routes"
 		return 1
-		exit
 	fi	
 	shtl_generate_route "$@" >> "$ROUTES_FILE" && shtl_refresh_routes
 }
 
 shtl_delete_route() {
 	local routeName="$1"
-	if shtl_route_name_exists $routeName; then
-		grep -v "^${routeName}:" "$ROUTES_FILE"  > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+	if shtl_route_name_exists "$routeName"; then
+		shtl_remove_route_entry "$routeName"
 	else
 		shtl_log "ERROR" "Could not remove route \"${routeName}\". The route does not exist"
 		return 1
@@ -277,7 +279,7 @@ shtl_toggle_persist() {
 	else
 		newEntry="${entry}:persist"
 	fi
-	grep -v "^${routeName}:" "$ROUTES_FILE" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+	shtl_remove_route_entry "$routeName"
 	echo "$newEntry" >> "$ROUTES_FILE" && shtl_refresh_routes
 	if shtl_entry_is_persistent "$newEntry"; then
 		shtl_log "INFO" "Route \"${routeName}\" is now persistent. Clean will skip it"
