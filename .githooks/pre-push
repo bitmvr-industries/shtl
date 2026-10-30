@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+# Runs lint and the tests against each commit being pushed, in a temporary
+# checkout, so uncommitted changes can't make them pass or fail. Also checks
+# that the committed ./shtl matches a fresh build of lib/ and src/.
+# Turn it on with: make hooks. Skip it once with: git push --no-verify
+
+set -eu
+
+repoDir="$(git rev-parse --show-toplevel)"
+checkDir=""
+logFile=""
+
+cleanup() {
+	if [[ -n $checkDir ]]; then
+		git -C "$repoDir" worktree remove --force "$checkDir" 2> /dev/null || rm -rf "$checkDir"
+	fi
+	if [[ -n $logFile ]]; then
+		rm -f "$logFile"
+	fi
+	return 0
+}
+trap cleanup EXIT
+
+fail() {
+	echo "pre-push: $1" >&2
+	if [[ -n $logFile && -s $logFile ]]; then
+		cat "$logFile" >&2
+	fi
+	echo "pre-push: push stopped. Fix the above, or skip with: git push --no-verify" >&2
+	exit 1
+}
+
+# Git passes one line per ref: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _ localSha _ _; do
+	# All zeros means the ref is being deleted; there's nothing to check
+	[[ $localSha =~ ^0+$ ]] && continue
+
+	checkDir="$(mktemp -d)"
+	logFile="$(mktemp)"
+	git -C "$repoDir" worktree add --detach --quiet --force "$checkDir" "$localSha"
+	echo "pre-push: checking ${localSha:0:7}..." >&2
+
+	make -C "$checkDir" lint > "$logFile" 2>&1 || fail "lint failed"
+	make -C "$checkDir" test > "$logFile" 2>&1 || fail "tests failed"
+	echo "pre-push: lint and $(grep -c '^ok ' "$logFile") tests passed" >&2
+	: > "$logFile"
+	git -C "$checkDir" diff --quiet -- shtl || fail "./shtl doesn't match lib/ and src/. Run make build and commit ./shtl"
+
+	cleanup
+	checkDir=""
+	logFile=""
+done
+
+exit 0

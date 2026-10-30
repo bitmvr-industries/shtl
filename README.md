@@ -94,6 +94,9 @@ is kept as `routes.v1.bak`.
 3. Run the tests: `make test` (needs [bats](https://github.com/bats-core/bats-core): `brew install bats-core`)
 4. Open a Pull Request with your branch
 
+Run `make hooks` once per clone to run lint and the tests automatically
+before every push. CI runs them on Linux; macOS is covered locally.
+
 Tests live in `test/` and run the built `shtl` against a temporary config
 directory, so they never touch your real routes.
 

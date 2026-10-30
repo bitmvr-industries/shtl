@@ -10,6 +10,7 @@ LIB_FILES=`find "./lib" -type f -name "*.sh"`
 SRC_FILES=`find "./src" -type f -name "*.sh"`
 SCRIPT_FILES=`find "./scripts" -type f -name "*.sh"`
 TEST_FILES=`find "./test" -type f -name "*.bash" -o -type f -name "*.bats"`
+HOOK_FILES=`find "./.githooks" -type f`
 TIMESTAMP=`date -u +"%Y-%m-%dT%H:%M:%SZ"`
 EXECUTABLE="shtl"
 BUILD_DIR="build"
@@ -51,12 +52,17 @@ uninstall:
 
 lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
-	@shellcheck -x $(LIB_FILES) $(SRC_FILES) $(SCRIPT_FILES) $(TEST_FILES)
+	@shellcheck -x $(LIB_FILES) $(SRC_FILES) $(SCRIPT_FILES) $(TEST_FILES) $(HOOK_FILES)
 	@echo "$(TIMESTAMP) - Lint: Finished"
 
 test: build
 	@command -v bats > /dev/null || { echo "$(TIMESTAMP) - Test: bats not found. Install it with: brew install bats-core"; exit 1; }
 	@bats test
 
-.PHONY: build clean install uninstall lint test
+# Runs lint and the tests before every push (see .githooks/pre-push)
+hooks:
+	@git config core.hooksPath .githooks
+	@echo "$(TIMESTAMP) - Hooks: Enabled. Lint and tests now run before each push"
+
+.PHONY: build clean install uninstall lint test hooks
 
