@@ -5,7 +5,7 @@ readonly CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shtl"
 readonly ROUTES_FILE="$CONFIG_DIR/routes"
 
 # Replaced with the contents of VERSION by `make build`
-readonly SHTL_VERSION="0.1.0"
+readonly SHTL_VERSION="0.2.0"
 
 
 shtl_log() {
