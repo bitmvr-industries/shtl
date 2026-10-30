@@ -47,45 +47,8 @@ shtl_init(){
 		shtl_log "ERROR" "${ROUTES_FILE} was written by a newer version of shtl (${firstLine#\# shtl routes }). Please upgrade shtl"
 		exit 1
 	fi
-	shtl_migrate_v1_routes || exit 1
-}
-
-# Converts the original NAME:PATH[:persist] format, read exactly the way
-# older versions read it, and keeps a copy of the original file.
-shtl_migrate_v1_routes(){
-	local entry name path flags
-	local invalid=() converted=()
-	while IFS='' read -r entry || [[ -n "$entry" ]]; do
-		[[ -z ${entry//[[:space:]]/} ]] && continue
-		name="${entry%%:*}"
-		if [[ $entry != *:* ]] || ! shtl_is_valid_name_format "$name"; then
-			invalid+=("$entry")
-			continue
-		fi
-		path="${entry#*:}"
-		flags=""
-		if [[ $path == *:persist ]]; then
-			path="${path%:persist}"
-			flags="persist"
-		fi
-		converted+=("$(shtl_format_entry "$name" "$flags" "$path")")
-	done < "$ROUTES_FILE"
-
-	if [[ ${#invalid[@]} -gt 0 ]]; then
-		shtl_log "ERROR" "Could not update ${ROUTES_FILE} to the new format. Route names can't contain \"[\" or \"]\" or start with \"#\". Rename or remove these entries, then run shtl again: $(printf '\n  %s' "${invalid[@]}")"
-		return 1
-	fi
-
-	# Older versions created an empty file on first run; nothing to convert
-	if [[ ${#converted[@]} -eq 0 ]]; then
-		echo "$ROUTES_HEADER" > "$ROUTES_FILE"
-		return 0
-	fi
-
-	cp "$ROUTES_FILE" "$ROUTES_FILE.v1.bak" || return 1
-	printf '%s\n' "${converted[@]}" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
-	shtl_refresh_routes
-	shtl_log "INFO" "Updated ${ROUTES_FILE} to the new format. The original is saved as ${ROUTES_FILE}.v1.bak"
+	shtl_log "ERROR" "${ROUTES_FILE} is not a shtl routes file. Its first line must be: ${ROUTES_HEADER}"
+	exit 1
 }
 
 # Rewrites the routes file: header first, then routes sorted by name

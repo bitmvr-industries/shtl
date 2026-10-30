@@ -56,56 +56,6 @@ load test_helper
 	[ "$output" = "work" ]
 }
 
-# Migrating from the original NAME:PATH[:persist] format
-
-@test "migration converts old entries and keeps a backup" {
-	write_v1_routes "work:$DIR_A" "nas:$DIR_B:persist" "" "odd:/tmp/a:b"
-	run --separate-stderr shtl list --names
-	[ "$status" -eq 0 ]
-	[[ $stderr == *"Updated"*"routes.v1.bak"* ]]
-	[ "$(head -n 1 "$ROUTES_FILE")" = "# shtl routes v2" ]
-	[ "$(routes)" = "nas[persist]:$DIR_B"$'\n'"odd[]:/tmp/a:b"$'\n'"work[]:$DIR_A" ]
-	[ "$(cat "$ROUTES_FILE.v1.bak")" = "work:$DIR_A"$'\n'"nas:$DIR_B:persist"$'\n'$'\n'"odd:/tmp/a:b" ]
-}
-
-@test "migration happens once" {
-	write_v1_routes "work:$DIR_A"
-	shtl list
-	run --separate-stderr shtl list
-	[ -z "$stderr" ]
-	[ "$(routes)" = "work[]:$DIR_A" ]
-}
-
-@test "migrated routes work with every command" {
-	write_v1_routes "work:$DIR_A" "nas:$MISSING_DIR:persist"
-	# The first run migrates; its notice goes to stderr, leaving stdout clean
-	run --separate-stderr shtl path work
-	[ "$output" = "$DIR_A" ]
-	run shtl clean
-	[[ $output == *"All routes point to existing directories"* ]]
-	shtl persist nas
-	[ "$(routes)" = "nas[]:$MISSING_DIR"$'\n'"work[]:$DIR_A" ]
-}
-
-@test "an empty old file gets the header without a backup" {
-	write_v1_routes ""
-	run --separate-stderr shtl list
-	[ "$status" -eq 0 ]
-	[[ $stderr != *"Updated"* ]]
-	[ "$(cat "$ROUTES_FILE")" = "# shtl routes v2" ]
-	[ ! -e "$ROUTES_FILE.v1.bak" ]
-}
-
-@test "migration refuses names it can't convert and changes nothing" {
-	write_v1_routes "work:$DIR_A" "a[1]:$DIR_B" "nocolon"
-	run shtl list
-	[ "$status" -eq 1 ]
-	[[ $output == *"a[1]:$DIR_B"* ]]
-	[[ $output == *"nocolon"* ]]
-	[ "$(cat "$ROUTES_FILE")" = "work:$DIR_A"$'\n'"a[1]:$DIR_B"$'\n'"nocolon" ]
-	[ ! -e "$ROUTES_FILE.v1.bak" ]
-}
-
 @test "a routes file from a newer shtl is left alone" {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
 	printf '%s\n' "# shtl routes v3" "something new" > "$ROUTES_FILE"
@@ -113,4 +63,13 @@ load test_helper
 	[ "$status" -eq 1 ]
 	[[ $output == *"newer version of shtl (v3)"* ]]
 	[ "$(cat "$ROUTES_FILE")" = "# shtl routes v3"$'\n'"something new" ]
+}
+
+@test "a routes file without the header is left alone" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "work:/tmp" > "$ROUTES_FILE"
+	run shtl list
+	[ "$status" -eq 1 ]
+	[[ $output == *"is not a shtl routes file"* ]]
+	[ "$(cat "$ROUTES_FILE")" = "work:/tmp" ]
 }

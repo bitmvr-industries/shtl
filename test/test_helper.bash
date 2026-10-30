@@ -24,9 +24,3 @@ setup() {
 routes() {
 	grep -v '^#' "$ROUTES_FILE"
 }
-
-# Writes a routes file in the original NAME:PATH[:persist] format
-write_v1_routes() {
-	mkdir -p "$(dirname "$ROUTES_FILE")"
-	printf '%s\n' "$@" > "$ROUTES_FILE"
-}

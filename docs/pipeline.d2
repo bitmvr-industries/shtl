@@ -24,7 +24,7 @@ shell: Your shell (bash / zsh) {
 }
 
 script: shtl script {
-  init: "shtl_init\n- create ~/.config/shtl if missing\n- check the routes v2 header\n- migrate a v1 file (keeps routes.v1.bak)" {class: step}
+  init: "shtl_init\n- create ~/.config/shtl if missing\n- check the routes v2 header" {class: step}
   dispatch: Dispatch subcommand {class: decision}
 
   path: path NAME {class: step}
@@ -54,7 +54,7 @@ shell.kind -> script.init: "route name:\ncommand shtl path NAME"
 script.print -> shell.cd: dest {style.stroke-dash: 3}
 script.fail -> user: error message {style.stroke-dash: 3}
 
-script.init -> routes: create / migrate
+script.init -> routes: create / check
 script.exists -> routes: look up NAME
 script.refresh -> routes: write
 script.read -> routes
