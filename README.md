@@ -16,10 +16,15 @@ To remove it: `make uninstall` (with the same `PREFIX`, if you set one).
 
 A script can't change your shell's directory, so `shtl` ships a small shell
 function that does the `cd` for it (plus tab completion of route names).
-Add this line to your `~/.zshrc` or `~/.bashrc`:
+
+`make install` offers to append it to the end of your rc file (`~/.zshrc`,
+or `~/.bash_profile` on macOS / `~/.bashrc` elsewhere). Nothing is changed
+unless you answer `y`, and `make uninstall` offers to remove it again. To
+add it yourself instead:
 
 ```sh
-eval "$(shtl init)"
+# shtl: https://github.com/bitmvr/shtl
+if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
 ```
 
 In zsh, put it after `compinit` so tab completion is registered. Then

@@ -39,11 +39,13 @@ install: build
 	@echo "$(TIMESTAMP) - Install: Installed to $(BIN_DIR)/shtl"
 	@case ":$$PATH:" in *":$(BIN_DIR):"*) ;; *) echo "$(TIMESTAMP) - Install: Warning: $(BIN_DIR) is not on your PATH" ;; esac
 	@echo "$(TIMESTAMP) - Install: Complete"
+	@bash scripts/shell_setup.sh install
 
 uninstall:
 	@echo "$(TIMESTAMP) - Uninstall: Starting"
 	@rm -f "$(BIN_DIR)/$(EXECUTABLE)"
 	@echo "$(TIMESTAMP) - Uninstall: Complete"
+	@bash scripts/shell_setup.sh uninstall
 
 lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
