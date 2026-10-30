@@ -13,10 +13,11 @@ readonly SHTL_COMMANDS="add remove rm list ls clean persist path init help versi
 
 
 shtl_log() {
-  local log_level="${1}"
-  local msg="${2}"
-  local log_entry=$(echo -e "\r\n$(basename "${0}") $(printf "%-7s" ["${log_level}"]) ${msg}\r\n\r\n")
-	
+	local log_level="${1}"
+	local msg="${2}"
+	local log_entry
+	log_entry=$(echo -e "\r\n$(basename "${0}") $(printf "%-7s" ["${log_level}"]) ${msg}\r\n\r\n")
+
 	echo -e "$log_entry" >&2
 }
 

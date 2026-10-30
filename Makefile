@@ -8,6 +8,8 @@ VERSION=`cat VERSION`
 
 LIB_FILES=`find "./lib" -type f -name "*.sh"`
 SRC_FILES=`find "./src" -type f -name "*.sh"`
+SCRIPT_FILES=`find "./scripts" -type f -name "*.sh"`
+TEST_FILES=`find "./test" -type f -name "*.bash" -o -type f -name "*.bats"`
 TIMESTAMP=`date -u +"%Y-%m-%dT%H:%M:%SZ"`
 EXECUTABLE="shtl"
 BUILD_DIR="build"
@@ -49,7 +51,7 @@ uninstall:
 
 lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
-	@shellcheck -x $(CONF_FILES) $(LIB_FILES) $(SRC_FILES)
+	@shellcheck -x $(LIB_FILES) $(SRC_FILES) $(SCRIPT_FILES) $(TEST_FILES)
 	@echo "$(TIMESTAMP) - Lint: Finished"
 
 test: build

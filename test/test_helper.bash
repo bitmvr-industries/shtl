@@ -3,6 +3,9 @@
 
 bats_require_minimum_version 1.5.0
 
+# The variables set in setup are used by the .bats files that load this
+# shellcheck disable=SC2034
+
 setup() {
 	REPO_DIR="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 	PATH="$REPO_DIR:$PATH"
