@@ -2,47 +2,67 @@
 
 source lib/shtl_functions.sh
 
+shtl_init
+
 if [[ ! $1 ]]; then
-	shuttle::usage
+	shtl_usage
 fi
 
 while (( "$#" ));  do
 	case $1 in
 		-l|--list)
-			shuttle::listRoutes
+			shtl_list_routes
 			break
 			;;	
 		-a|--add)
 			shift
-			shuttle::validateArguments "$@"
-			shuttle::addRoute "$1" "$2"
+			persist=""
+			routeArgs=()
+			for arg in "$@"; do
+				case $arg in
+					-p|--persist) persist="persist" ;;
+					*) routeArgs+=("$arg") ;;
+				esac
+			done
+			shtl_validate_arguments "${routeArgs[@]}"
+			shtl_add_route "${routeArgs[0]}" "${routeArgs[1]}" "$persist"
+			break
+			;;
+		-c|--clean)
+			shtl_clean_routes
+			break
+			;;
+		-p|--persist)
+			shift
+			shtl_validate_arguments "$@"
+			shtl_toggle_persist "$1"
 			break
 			;;
 		-d|--delete)
 			shift
-			shuttle::validateArguments "$@"
-			shuttle::deleteRoute "$1"
+			shtl_validate_arguments "$@"
+			shtl_delete_route "$1"
 			break
 			;;
 		-h|--help)
-			shuttle::usage
+			shtl_usage
 			break
 			;;
 		-m|--modify)
 			#TODO
-			shuttle::modifyRouteName
+			shtl_modify_route_name
 			break
 			;;
 		-v|--version)
-			shuttle::version
+			shtl_version
 			break
 			;;
 		*)
-			if shuttle::routeNameExists "$1"; then
-				shuttle::route "$1"
+			if shtl_route_name_exists "$1"; then
+				shtl_route "$1"
 			else
-				shuttle::log "ERROR" "The supplied flag or route name is invalid"
-				shuttle::usage
+				shtl_log "ERROR" "The supplied flag or route name is invalid"
+				shtl_usage
       fi
       break
 			;;
