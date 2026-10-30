@@ -107,6 +107,18 @@ A route name must not contain `:`, `[`, or `]`. A route name must not start with
 
 Routes files from `shtl` 0.4.0 and from versions before 0.4.0 use the format `NAME:PATH[:persist]`. When a newer `shtl` starts for the first time, it changes the routes file to the new format automatically. It keeps the initial file as `routes.v1.bak`.
 
+## How It Works
+
+When you enter `shtl ROUTE_NAME`, the shell function sends the route name to the `shtl` script. The script finds the path of the route in the routes file and shows it. Then the shell function goes to that directory.
+
+![How shtl works](docs/pipeline.svg)
+
+The diagram source is `docs/pipeline.d2`. If you change the source, enter this command to make the diagram again:
+
+```sh
+d2 docs/pipeline.d2 docs/pipeline.svg
+```
+
 ## Contribute
 
 1. Clone this repository.

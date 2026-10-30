@@ -1,0 +1,60 @@
+# How shtl works: from `shtl ROUTE_NAME` to `cd`
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+direction: down
+
+classes: {
+  step: {style.border-radius: 6}
+  decision: {shape: diamond}
+  error: {style: {fill: "#fde2e2"; stroke: "#c0392b"}}
+  data: {shape: cylinder}
+}
+
+user: You {shape: person}
+
+shell: Your shell (bash / zsh) {
+  fn: "shtl() shell function\nloaded by eval \"\$(shtl init)\"" {class: step}
+  kind: First argument? {class: decision}
+  cd: "cd -- \"\$dest\"" {class: step}
+  fn -> kind
+}
+
+script: shtl script {
+  init: "shtl_init\n- create ~/.config/shtl if missing\n- check the routes v2 header\n- migrate a v1 file (keeps routes.v1.bak)" {class: step}
+  dispatch: Dispatch subcommand {class: decision}
+
+  path: path NAME {class: step}
+  exists: "Route and\ndirectory exist?" {class: decision}
+  print: Print path to stdout {class: step}
+  fail: "Log ERROR to stderr\nexit 1" {class: error}
+
+  write: "add / update / remove\npersist / clean" {class: step}
+  refresh: "Rewrite file:\nheader + routes sorted by name" {class: step}
+  read: "list / ls / help\ninit / version" {class: step}
+
+  init -> dispatch
+  dispatch -> path: path
+  dispatch -> write: change routes
+  dispatch -> read: read only
+  path -> exists
+  exists -> print: yes
+  exists -> fail: no
+  write -> refresh
+}
+
+routes: "routes file\n~/.config/shtl/routes\none NAME[FLAGS]:PATH per line" {class: data}
+
+user -> shell.fn: shtl ROUTE_NAME
+shell.kind -> script.init: "command or flag:\ncommand shtl ARGS"
+shell.kind -> script.init: "route name:\ncommand shtl path NAME"
+script.print -> shell.cd: dest {style.stroke-dash: 3}
+script.fail -> user: error message {style.stroke-dash: 3}
+
+script.init -> routes: create / migrate
+script.exists -> routes: look up NAME
+script.refresh -> routes: write
+script.read -> routes
