@@ -10,7 +10,7 @@ readonly ROUTES_FILE="$CONFIG_DIR/routes"
 readonly ROUTES_HEADER="# shtl routes v2"
 
 # Replaced with the contents of VERSION by `make build`
-readonly SHTL_VERSION="0.5.0"
+readonly SHTL_VERSION="0.6.0"
 
 # Subcommands. Route names can't use these, and the shell function from
 # `shtl init` passes them straight through to the script.
