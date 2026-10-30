@@ -94,10 +94,20 @@ shtl_get_current_path() {
 	pwd
 }
 
+shtl_has_routes() {
+	grep -q '[^[:space:]]' "$ROUTES_FILE"
+}
+
 shtl_list_routes() {
+	if ! shtl_has_routes; then
+		shtl_log "INFO" "No routes yet. Add one with: shtl add NAME [PATH]"
+		return 0
+	fi
 	while IFS='' read -r route || [[ -n "$route" ]]; do
-    	echo "$route"
-	done < "$ROUTES_FILE" 
+		if [[ -n $route ]]; then
+			echo "$route"
+		fi
+	done < "$ROUTES_FILE"
 }
 
 shtl_generate_route() {	
@@ -168,6 +178,11 @@ shtl_clean_routes() {
 	local names=() paths=() selected=()
 	local entry path name key rest i next
 	local cursor=0 width=0 removed=0
+
+	if ! shtl_has_routes; then
+		shtl_log "INFO" "No routes to clean. Add one with: shtl add NAME [PATH]"
+		return 0
+	fi
 
 	while IFS='' read -r entry || [[ -n "$entry" ]]; do
 		[[ -z $entry ]] && continue
