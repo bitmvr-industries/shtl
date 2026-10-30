@@ -7,7 +7,8 @@ readonly ROUTES_FILE="$CONFIG_DIR/routes"
 # First line of the routes file. Each route below it is NAME[FLAGS]:PATH,
 # e.g. work[]:/Users/me/work or nas[persist]:/Volumes/nas. FLAGS is a
 # comma-separated list. PATH comes last so it can contain anything, colons included.
-readonly ROUTES_HEADER="# shtl routes v2"
+# The format version matches shtl's major version. Bump both together.
+readonly ROUTES_HEADER="# shtl routes v1"
 
 # Replaced with the contents of VERSION by `make build`
 readonly SHTL_VERSION="__SHTL_VERSION__"

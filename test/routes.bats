@@ -238,7 +238,7 @@ load test_helper
 
 @test "list warns about routes named after a command" {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
-	printf '%s\n' "# shtl routes v2" "update[]:$DIR_A" "work[]:$DIR_B" > "$ROUTES_FILE"
+	printf '%s\n' "# shtl routes v1" "update[]:$DIR_A" "work[]:$DIR_B" > "$ROUTES_FILE"
 	run --separate-stderr shtl list
 	[ "$status" -eq 0 ]
 	[[ $stderr == *'Route "update" has the same name as a shtl command'* ]]
@@ -249,7 +249,7 @@ load test_helper
 
 @test "list --names doesn't warn, since completion reads it" {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
-	printf '%s\n' "# shtl routes v2" "update[]:$DIR_A" > "$ROUTES_FILE"
+	printf '%s\n' "# shtl routes v1" "update[]:$DIR_A" > "$ROUTES_FILE"
 	run --separate-stderr shtl list --names
 	[ "$output" = "update" ]
 	[ -z "$stderr" ]

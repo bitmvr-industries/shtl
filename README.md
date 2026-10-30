@@ -117,7 +117,7 @@ shtl clean                 # remove routes whose directories are gone
 The routes file is plain text. You can change it in a text editor. The first line is the header. Each line after the header is one route, in the format `NAME[FLAGS]:PATH`:
 
 ```
-# shtl routes v2
+# shtl routes v1
 nas[persist]:/Volumes/nas
 work[]:/Users/me/work
 ```

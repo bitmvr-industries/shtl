@@ -24,7 +24,7 @@ shell: Your shell (bash / zsh) {
 }
 
 script: shtl script {
-  init: "shtl_init\n- create ~/.config/shtl if missing\n- check the routes v2 header" {class: step}
+  init: "shtl_init\n- create ~/.config/shtl if missing\n- check the routes v1 header" {class: step}
   dispatch: Dispatch subcommand {class: decision}
 
   path: path NAME {class: step}
