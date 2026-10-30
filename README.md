@@ -140,10 +140,6 @@ A route name must not:
 - Start with `-` or `#`.
 - Be the same as a `shtl` command, for example `add` or `list`.
 
-### Files From Older Versions
-
-`shtl` 0.4.0 and the versions before it use the format `NAME:PATH[:persist]`. When a newer `shtl` starts for the first time, it changes the routes file to the new format. It keeps a copy of the initial file as `routes.v1.bak`.
-
 ## How It Works
 
 When you enter `shtl ROUTE_NAME`, the shell function sends the route name to the `shtl` script. The script finds the path of the route in the routes file and shows it. Then the shell function goes to that directory.
