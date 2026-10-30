@@ -7,6 +7,10 @@ readonly ROUTES_FILE="$CONFIG_DIR/routes"
 # Replaced with the contents of VERSION by `make build`
 readonly SHTL_VERSION="0.2.0"
 
+# Subcommands. Route names can't use these, and the shell function from
+# `shtl init` passes them straight through to the script.
+readonly SHTL_COMMANDS="add remove rm list ls clean persist path init help version"
+
 
 shtl_log() {
   local log_level="${1}"
@@ -38,17 +42,20 @@ shtl_usage() {
 	echo ""
 	echo "$(basename "$0") - Help"
 	echo ""
-	echo "    -l | --list    Display available routes"
-	echo "    -h | --help    Display this information"
-	echo "    -a | --add     ROUTE_NAME [ROUTE] [-p|--persist] Add a route. Provide only the name unless you're not current in the desired route path"
-	echo "                   --persist keeps the route even if its directory doesn't exist (clean will skip it)"
-	echo "    -c | --clean   Interactively remove routes whose directories no longer exist"
-	echo "    -p | --persist ROUTE_NAME Toggle whether clean skips a route"
-	echo "    -d | --delete  ROUTE_NAME Delete a route via its route name"
-	echo "    -m | --modify  ROUTE_NAME ROUTE Modify a route via its route name"
-	echo "    -v | --version Prints current shtl version"
-	echo "         --path    ROUTE_NAME Print a route's path (e.g. cp file \"\$(shtl --path work)\")"
-	echo "         init      Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
+	echo "  Usage: shtl ROUTE_NAME"
+	echo "         shtl COMMAND [ARGS]"
+	echo ""
+	echo "    ROUTE_NAME                      Jump to a route (needs the shell function, see init)"
+	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH defaults to the current directory"
+	echo "                                    --persist keeps the route even if its directory doesn't exist (clean skips it)"
+	echo "    remove | rm NAME                Remove a route"
+	echo "    list | ls                       List routes"
+	echo "    clean                           Interactively remove routes whose directories no longer exist"
+	echo "    persist NAME                    Toggle whether clean skips a route"
+	echo "    path NAME                       Print a route's path (e.g. cp file \"\$(shtl path work)\")"
+	echo "    init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
+	echo "    help                            Display this information"
+	echo "    version                         Print the shtl version"
 	echo ""
 }
 
@@ -77,7 +84,9 @@ shtl_get_route() {
 shtl_get_route_names(){
 	local entry
 	while IFS='' read -r entry || [[ -n "$entry" ]]; do
-		[[ -n $entry ]] && echo "${entry%%:*}"
+		if [[ -n $entry ]]; then
+			echo "${entry%%:*}"
+		fi
 	done < "$ROUTES_FILE"
 }
 
@@ -110,10 +119,14 @@ shtl_route_name_exists(){
 	grep -q "^${routeName}:" "$ROUTES_FILE"
 }
 
+shtl_is_command(){
+	[[ " $SHTL_COMMANDS " == *" $1 "* ]]
+}
+
 shtl_add_route(){
-	# Names can't start with "-" (flags), contain ":" (the separator), or be "init"
-	if [[ $1 == -* || $1 == *:* || $1 == "init" ]]; then
-		shtl_log "ERROR" "Route names can't start with \"-\", contain \":\", or be \"init\""
+	# Names can't start with "-" (flags), contain ":" (the separator), or be a subcommand
+	if [[ $1 == -* || $1 == *:* ]] || shtl_is_command "$1"; then
+		shtl_log "ERROR" "Route names can't start with \"-\", contain \":\", or be a shtl command (${SHTL_COMMANDS// /, })"
 		return 1
 	fi
 	if shtl_route_name_exists "$1"; then
@@ -129,7 +142,8 @@ shtl_delete_route() {
 	if shtl_route_name_exists $routeName; then
 		grep -v "^${routeName}:" "$ROUTES_FILE"  > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
 	else
-		shtl_log "ERROR" "Could not delete route \"${routeName}\". The route does not exist"
+		shtl_log "ERROR" "Could not remove route \"${routeName}\". The route does not exist"
+		return 1
 	fi
 }
 
@@ -257,10 +271,6 @@ shtl_toggle_persist() {
 	fi
 }
 
-shtl_modify_route_name() {
-	shtl_log "WARN" "This feature doesn't currently exist"
-}
-
 # Prints only the route's path, for the shell function and for use in scripts
 shtl_print_path(){
 	local routeName="$1"
@@ -287,31 +297,32 @@ shtl_route(){
 # Prints the shell function and tab completion. Works in bash and zsh:
 # eval "$(shtl init)"
 shtl_print_init(){
-	cat <<'EOF'
+	local commandPattern="${SHTL_COMMANDS// /|}"
+	sed -e "s/__SHTL_COMMAND_PATTERN__/${commandPattern}/" -e "s/__SHTL_COMMANDS__/${SHTL_COMMANDS}/" <<'EOF'
 shtl() {
 	case "$1" in
-		""|-*|init) command shtl "$@" ;;
+		""|-*|__SHTL_COMMAND_PATTERN__) command shtl "$@" ;;
 		*)
 			local dest
-			dest="$(command shtl --path "$1")" && cd -- "$dest"
+			dest="$(command shtl path "$1")" && cd -- "$dest"
 			;;
 	esac
 }
 
 if [ -n "$ZSH_VERSION" ]; then
 	_shtl() {
-		local -a routes
-		routes=(${(f)"$(command shtl --names)"})
+		local -a routes subcommands
+		routes=(${(f)"$(command shtl list --names)"})
+		subcommands=(__SHTL_COMMANDS__)
 		if (( CURRENT == 2 )); then
-			if [[ $PREFIX == -* ]]; then
-				compadd -- -a --add -c --clean -d --delete -h --help -l --list -p --persist --path -v --version
-			else
-				compadd -a routes
-			fi
+			compadd -a subcommands
+			compadd -a routes
 		elif (( CURRENT == 3 )); then
 			case "${words[2]}" in
-				-d|--delete|-p|--persist|--path) compadd -a routes ;;
+				remove|rm|persist|path) compadd -a routes ;;
 			esac
+		elif (( CURRENT == 4 )) && [[ "${words[2]}" == add ]]; then
+			_files -/
 		fi
 	}
 	if (( $+functions[compdef] )); then
@@ -320,17 +331,16 @@ if [ -n "$ZSH_VERSION" ]; then
 elif [ -n "$BASH_VERSION" ]; then
 	_shtl() {
 		local cur="${COMP_WORDS[COMP_CWORD]}"
-		local prev="${COMP_WORDS[COMP_CWORD-1]}"
 		local words=""
 		if [ "$COMP_CWORD" -eq 1 ]; then
-			case "$cur" in
-				-*) words="-a --add -c --clean -d --delete -h --help -l --list -p --persist --path -v --version" ;;
-				*) words="$(command shtl --names)" ;;
-			esac
+			words="__SHTL_COMMANDS__ $(command shtl list --names)"
 		elif [ "$COMP_CWORD" -eq 2 ]; then
-			case "$prev" in
-				-d|--delete|-p|--persist|--path) words="$(command shtl --names)" ;;
+			case "${COMP_WORDS[1]}" in
+				remove|rm|persist|path) words="$(command shtl list --names)" ;;
 			esac
+		elif [ "$COMP_CWORD" -eq 3 ] && [ "${COMP_WORDS[1]}" = add ]; then
+			COMPREPLY=($(compgen -d -- "$cur"))
+			return
 		fi
 		COMPREPLY=($(compgen -W "$words" -- "$cur"))
 	}
@@ -351,83 +361,60 @@ shtl_version(){
 
 shtl_init
 
-if [[ ! $1 ]]; then
-	shtl_usage
-fi
+subcommand="$1"
+shift
 
-while (( "$#" ));  do
-	case $1 in
-		-l|--list)
-			shtl_list_routes
-			break
-			;;	
-		-a|--add)
-			shift
-			persist=""
-			routeArgs=()
-			for arg in "$@"; do
-				case $arg in
-					-p|--persist) persist="persist" ;;
-					*) routeArgs+=("$arg") ;;
-				esac
-			done
-			shtl_validate_arguments "${routeArgs[@]}"
-			shtl_add_route "${routeArgs[0]}" "${routeArgs[1]}" "$persist"
-			break
-			;;
-		-c|--clean)
-			shtl_clean_routes
-			break
-			;;
-		-p|--persist)
-			shift
-			shtl_validate_arguments "$@"
-			shtl_toggle_persist "$1"
-			break
-			;;
-		-d|--delete)
-			shift
-			shtl_validate_arguments "$@"
-			shtl_delete_route "$1"
-			break
-			;;
-		-h|--help)
-			shtl_usage
-			break
-			;;
-		-m|--modify)
-			#TODO
-			shtl_modify_route_name
-			break
-			;;
-		-v|--version)
-			shtl_version
-			break
-			;;
-		--path)
-			shift
-			shtl_validate_arguments "$@"
-			shtl_print_path "$1"
-			exit
-			;;
-		--names)
+case $subcommand in
+	""|help)
+		shtl_usage
+		;;
+	add)
+		persist=""
+		routeArgs=()
+		for arg in "$@"; do
+			case $arg in
+				-p|--persist) persist="persist" ;;
+				*) routeArgs+=("$arg") ;;
+			esac
+		done
+		shtl_validate_arguments "${routeArgs[@]}"
+		shtl_add_route "${routeArgs[0]}" "${routeArgs[1]}" "$persist"
+		;;
+	remove|rm)
+		shtl_validate_arguments "$@"
+		shtl_delete_route "$1"
+		;;
+	list|ls)
+		if [[ $1 == --names ]]; then
 			shtl_get_route_names
-			break
-			;;
-		init)
-			shtl_print_init
-			break
-			;;
-		*)
-			if shtl_route_name_exists "$1"; then
-				shtl_route "$1"
-				exit
-			else
-				shtl_log "ERROR" "The supplied flag or route name is invalid"
-				shtl_usage
-				exit 1
-      fi
-      break
-			;;
-	esac
-done
+		else
+			shtl_list_routes
+		fi
+		;;
+	clean)
+		shtl_clean_routes
+		;;
+	persist)
+		shtl_validate_arguments "$@"
+		shtl_toggle_persist "$1"
+		;;
+	path)
+		shtl_validate_arguments "$@"
+		shtl_print_path "$1"
+		;;
+	init)
+		shtl_print_init
+		;;
+	version)
+		shtl_version
+		;;
+	*)
+		if shtl_route_name_exists "$subcommand"; then
+			shtl_route "$subcommand"
+		else
+			shtl_log "ERROR" "\"${subcommand}\" is not a shtl command or route"
+			shtl_usage
+			exit 1
+		fi
+		;;
+esac

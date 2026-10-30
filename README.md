@@ -19,9 +19,17 @@ eval "$(shtl init)"
 In zsh, put it after `compinit` so tab completion is registered. Then
 open a new terminal (or `source` the file) and jump with `shtl ROUTE_NAME`.
 
+```sh
+shtl add work              # save the current directory as "work"
+shtl add nas /Volumes/nas --persist
+shtl work                  # jump there
+shtl ls                    # list routes
+shtl clean                 # remove routes whose directories are gone
+```
+
 ## Verify Installation
 
-Execute: `shtl`
+Execute: `shtl help`
 
 You should be presented with the `usage` of `shtl`
 
@@ -29,17 +37,20 @@ You should be presented with the `usage` of `shtl`
 
 shtl - Help
 
-    -l | --list    Display available routes
-    -h | --help    Display this information
-    -a | --add     ROUTE_NAME [ROUTE] [-p|--persist] Add a route. Provide only the name unless you're not current in the desired route path
-                   --persist keeps the route even if its directory doesn't exist (clean will skip it)
-    -c | --clean   Interactively remove routes whose directories no longer exist
-    -p | --persist ROUTE_NAME Toggle whether clean skips a route
-    -d | --delete  ROUTE_NAME Delete a route via its route name
-    -m | --modify  ROUTE_NAME ROUTE Modify a route via its route name
-    -v | --version Prints current shtl version
-         --path    ROUTE_NAME Print a route's path (e.g. cp file "$(shtl --path work)")
-         init      Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval "$(shtl init)"
+  Usage: shtl ROUTE_NAME
+         shtl COMMAND [ARGS]
+
+    ROUTE_NAME                      Jump to a route (needs the shell function, see init)
+    add NAME [PATH] [-p|--persist]  Add a route. PATH defaults to the current directory
+                                    --persist keeps the route even if its directory doesn't exist (clean skips it)
+    remove | rm NAME                Remove a route
+    list | ls                       List routes
+    clean                           Interactively remove routes whose directories no longer exist
+    persist NAME                    Toggle whether clean skips a route
+    path NAME                       Print a route's path (e.g. cp file "$(shtl path work)")
+    init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval "$(shtl init)"
+    help                            Display this information
+    version                         Print the shtl version
 
 ```
 
