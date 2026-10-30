@@ -3,7 +3,9 @@
 # Route List (XDG Base Directory spec)
 readonly CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shtl"
 readonly ROUTES_FILE="$CONFIG_DIR/routes"
-readonly USAGE="$(dirname "$0")"
+
+# Replaced with the contents of VERSION by `make build`
+readonly SHTL_VERSION="0.1.0"
 
 
 shtl_log() {
@@ -338,7 +340,12 @@ EOF
 }
 
 shtl_version(){
-	cat "$(dirname $(basename "$0"))/VERSION"
+	# Running from source (unbuilt): read VERSION from the repo root
+	if [[ $SHTL_VERSION == __* ]]; then
+		cat "$(dirname "$0")/../VERSION"
+	else
+		echo "$SHTL_VERSION"
+	fi
 }
 
 

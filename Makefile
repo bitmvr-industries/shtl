@@ -4,7 +4,7 @@
 ## set noexpandtab
 
 NAME=shtl
-VERSION=1.0.0
+VERSION=`cat VERSION`
 
 LIB_FILES=`find "./lib" -type f -name "*.sh"`
 SRC_FILES=`find "./src" -type f -name "*.sh"`
@@ -18,7 +18,7 @@ build:
 	@echo "$(TIMESTAMP) - Build: Starting"
 	@mkdir -p $(BUILD_DIR)
 	@echo "#!/usr/bin/env bash" > $(BUILD_DIR)/shebang
-	@cat $(LIB_FILES) $(SRC_FILES) | awk '!/^source/' | awk '!/#!/' > $(BUILD_DIR)/$(EXECUTABLE)
+	@cat $(LIB_FILES) $(SRC_FILES) | awk '!/^source/' | awk '!/#!/' | sed "s/__SHTL_VERSION__/$(VERSION)/" > $(BUILD_DIR)/$(EXECUTABLE)
 	@cat $(BUILD_DIR)/shebang $(BUILD_DIR)/$(EXECUTABLE) > $(EXECUTABLE)
 	@rm -rf $(BUILD_DIR)
 	@chmod +x $(EXECUTABLE)
