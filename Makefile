@@ -52,5 +52,9 @@ lint:
 	@shellcheck -x $(CONF_FILES) $(LIB_FILES) $(SRC_FILES)
 	@echo "$(TIMESTAMP) - Lint: Finished"
 
-.PHONY: build clean install uninstall lint
+test: build
+	@command -v bats > /dev/null || { echo "$(TIMESTAMP) - Test: bats not found. Install it with: brew install bats-core"; exit 1; }
+	@bats test
+
+.PHONY: build clean install uninstall lint test
 

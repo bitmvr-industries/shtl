@@ -69,5 +69,9 @@ shtl - Help
 
 1. Clone this repository
 2. Create a branch
-3. Open a Pull Request with your branch
+3. Run the tests: `make test` (needs [bats](https://github.com/bats-core/bats-core): `brew install bats-core`)
+4. Open a Pull Request with your branch
+
+Tests live in `test/` and run the built `shtl` against a temporary config
+directory, so they never touch your real routes.
 
