@@ -27,35 +27,39 @@ To remove `shtl`, enter `make uninstall`. If you set `PREFIX` when you installed
 
 A script cannot change the directory of your shell. Thus, `shtl` has a shell function that does the `cd` command for the script. The shell function also gives tab completion for route names.
 
-`make install` shows a prompt to add the shell function to the end of your rc file:
+`make install` shows a prompt to add the shell function to your rc file. If you type `y`, it is not necessary to do the steps in this section. `make uninstall` shows a prompt to remove the shell function.
 
-- zsh: `~/.zshrc`
-- bash on macOS: `~/.bash_profile`
-- bash on other systems: `~/.bashrc`
+To add the shell function without `make install`, do the steps for your shell.
 
-`make install` changes your rc file only if you type `y`. `make uninstall` shows a prompt to remove the shell function.
+### zsh
 
-To add the shell function without `make install`, do these steps:
-
-1. If you use zsh, put the lines that follow after `compinit`. If you do not, tab completion does not operate.
-2. Add these lines to your rc file:
+1. Open your rc file:
+   - If you set `ZDOTDIR`, open `$ZDOTDIR/.zshrc`.
+   - If you did not set `ZDOTDIR`, open `~/.zshrc`.
+2. Add these lines after `compinit`:
 
    ```sh
    # shtl: https://github.com/bitmvr/shtl
    if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
    ```
 
-3. Open a new terminal. As an alternative, enter `source` with the name of your rc file.
+   If you add the lines before `compinit`, tab completion does not operate.
 
-To go to a route, enter `shtl ROUTE_NAME`. These are examples of the commands:
+3. Open a new terminal.
 
-```sh
-shtl add work              # save the current directory as "work"
-shtl add nas /Volumes/nas --persist
-shtl work                  # jump there
-shtl ls                    # list routes
-shtl clean                 # remove routes whose directories are gone
-```
+### bash
+
+1. Open your rc file:
+   - On macOS, open `~/.bash_profile`.
+   - On other systems, open `~/.bashrc`.
+2. Add these lines to the end of the file:
+
+   ```sh
+   # shtl: https://github.com/bitmvr/shtl
+   if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
+   ```
+
+3. Open a new terminal.
 
 ## Installation Test
 
@@ -87,6 +91,18 @@ shtl - Help
     help                            Display this information
     version                         Print the shtl version
 
+```
+
+## Examples
+
+To go to a route, enter `shtl ROUTE_NAME`. These are examples of the commands:
+
+```sh
+shtl add work              # save the current directory as "work"
+shtl add nas /Volumes/nas --persist
+shtl work                  # jump there
+shtl ls                    # list routes
+shtl clean                 # remove routes whose directories are gone
 ```
 
 ## Routes File
