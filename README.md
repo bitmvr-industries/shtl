@@ -4,33 +4,50 @@
 
 ## Install
 
-> The following assumes you are in the project's root directory.
+1. Go to the root directory of the project.
+2. Enter this command:
 
-**Execute:** `make install`
+   ```sh
+   make install
+   ```
 
-This installs `shtl` to `~/.local/bin` with no `sudo`. Make sure that
-directory is on your `PATH` (the install warns you if it isn't). To install
-somewhere else, set `PREFIX`, e.g. `sudo make install PREFIX=/usr/local`.
+   The command installs `shtl` in `~/.local/bin`. It is not necessary to use `sudo`.
 
-To remove it: `make uninstall` (with the same `PREFIX`, if you set one).
+3. Make sure that `~/.local/bin` is in your `PATH`. If it is not in your `PATH`, the command shows a warning.
+
+To install `shtl` in a different directory, set `PREFIX`. For example:
+
+```sh
+sudo make install PREFIX=/usr/local
+```
+
+To remove `shtl`, enter `make uninstall`. If you set `PREFIX` when you installed `shtl`, set the same `PREFIX` again.
 
 ## Shell Integration
 
-A script can't change your shell's directory, so `shtl` ships a small shell
-function that does the `cd` for it (plus tab completion of route names).
+A script cannot change the directory of your shell. Thus, `shtl` has a shell function that does the `cd` command for the script. The shell function also gives tab completion for route names.
 
-`make install` offers to append it to the end of your rc file (`~/.zshrc`,
-or `~/.bash_profile` on macOS / `~/.bashrc` elsewhere). Nothing is changed
-unless you answer `y`, and `make uninstall` offers to remove it again. To
-add it yourself instead:
+`make install` shows a prompt to add the shell function to the end of your rc file:
 
-```sh
-# shtl: https://github.com/bitmvr/shtl
-if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
-```
+- zsh: `~/.zshrc`
+- bash on macOS: `~/.bash_profile`
+- bash on other systems: `~/.bashrc`
 
-In zsh, put it after `compinit` so tab completion is registered. Then
-open a new terminal (or `source` the file) and jump with `shtl ROUTE_NAME`.
+`make install` changes your rc file only if you type `y`. `make uninstall` shows a prompt to remove the shell function.
+
+To add the shell function without `make install`, do these steps:
+
+1. If you use zsh, put the lines that follow after `compinit`. If you do not, tab completion does not operate.
+2. Add these lines to your rc file:
+
+   ```sh
+   # shtl: https://github.com/bitmvr/shtl
+   if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
+   ```
+
+3. Open a new terminal. As an alternative, enter `source` with the name of your rc file.
+
+To go to a route, enter `shtl ROUTE_NAME`. These are examples of the commands:
 
 ```sh
 shtl add work              # save the current directory as "work"
@@ -40,11 +57,15 @@ shtl ls                    # list routes
 shtl clean                 # remove routes whose directories are gone
 ```
 
-## Verify Installation
+## Installation Test
 
-Execute: `shtl help`
+1. Enter this command:
 
-You should be presented with the `usage` of `shtl`
+   ```sh
+   shtl help
+   ```
+
+   `shtl` shows its help text:
 
 ```
 
@@ -70,8 +91,9 @@ shtl - Help
 
 ## Routes File
 
-Routes live in `~/.config/shtl/routes` (or `$XDG_CONFIG_HOME/shtl/routes`),
-one per line as `NAME[FLAGS]:PATH`. It's plain text, safe to edit by hand:
+`shtl` keeps the routes in `~/.config/shtl/routes`. If you set `XDG_CONFIG_HOME`, `shtl` keeps the routes in `$XDG_CONFIG_HOME/shtl/routes`.
+
+The routes file is plain text. You can change it in a text editor. Each line is one route, in the format `NAME[FLAGS]:PATH`. For example:
 
 ```
 # shtl routes v2
@@ -79,24 +101,22 @@ nas[persist]:/Volumes/nas
 work[]:/Users/me/work
 ```
 
-`FLAGS` is a comma-separated list; `persist` is the only flag today. The
-path comes last, so it can contain anything, colons included. Route names
-can't contain `:`, `[` or `]`, or start with `-` or `#`.
+`FLAGS` is a list of flags, with a comma between each flag. At this time, `persist` is the only flag. The path is the last item on the line. Thus, the path can contain all characters, and colons also.
 
-Routes files from shtl 0.4.0 and earlier (`NAME:PATH[:persist]`) are
-converted automatically the first time a newer shtl runs, and the original
-is kept as `routes.v1.bak`.
+A route name must not contain `:`, `[`, or `]`. A route name must not start with `-` or `#`.
+
+Routes files from `shtl` 0.4.0 and from versions before 0.4.0 use the format `NAME:PATH[:persist]`. When a newer `shtl` starts for the first time, it changes the routes file to the new format automatically. It keeps the initial file as `routes.v1.bak`.
 
 ## Contribute
 
-1. Clone this repository
-2. Create a branch
-3. Run the tests: `make test` (needs [bats](https://github.com/bats-core/bats-core): `brew install bats-core`)
-4. Open a Pull Request with your branch
+1. Clone this repository.
+2. Make a branch.
+3. Make sure that [bats](https://github.com/bats-core/bats-core) is installed. To install it, enter `brew install bats-core`.
+4. To do the tests, enter `make test`.
+5. Open a pull request with your branch.
 
-Run `make hooks` once per clone to run lint and the tests automatically
-before every push. CI runs them on Linux; macOS is covered locally.
+To do the lint and the tests automatically before each push, enter `make hooks` one time in each clone.
 
-Tests live in `test/` and run the built `shtl` against a temporary config
-directory, so they never touch your real routes.
+CI does the lint and the tests on Linux only. On macOS, you must do the tests on your computer.
 
+The tests are in `test/`. The tests use the `shtl` script that `make` makes and a temporary configuration directory. Thus, the tests do not change your routes.
