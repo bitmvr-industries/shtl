@@ -107,9 +107,14 @@ shtl clean                 # remove routes whose directories are gone
 
 ## Routes File
 
-`shtl` keeps the routes in `~/.config/shtl/routes`. If you set `XDG_CONFIG_HOME`, `shtl` keeps the routes in `$XDG_CONFIG_HOME/shtl/routes`.
+### Location
 
-The routes file is plain text. You can change it in a text editor. Each line is one route, in the format `NAME[FLAGS]:PATH`. For example:
+- If you set `XDG_CONFIG_HOME`, the routes file is `$XDG_CONFIG_HOME/shtl/routes`.
+- If you did not set `XDG_CONFIG_HOME`, the routes file is `~/.config/shtl/routes`.
+
+### Format
+
+The routes file is plain text. You can change it in a text editor. The first line is the header. Each line after the header is one route, in the format `NAME[FLAGS]:PATH`:
 
 ```
 # shtl routes v2
@@ -117,11 +122,27 @@ nas[persist]:/Volumes/nas
 work[]:/Users/me/work
 ```
 
-`FLAGS` is a list of flags, with a comma between each flag. At this time, `persist` is the only flag. The path is the last item on the line. Thus, the path can contain all characters, and colons also.
+| Part | Description |
+|---|---|
+| `NAME` | The name of the route. |
+| `FLAGS` | A list of flags, with a comma between each flag. The list can be empty. |
+| `PATH` | The absolute path of the directory. |
 
-A route name must not contain `:`, `[`, or `]`. A route name must not start with `-` or `#`.
+At this time, `persist` is the only flag. `shtl clean` does not remove a route that has the `persist` flag.
 
-Routes files from `shtl` 0.4.0 and from versions before 0.4.0 use the format `NAME:PATH[:persist]`. When a newer `shtl` starts for the first time, it changes the routes file to the new format automatically. It keeps the initial file as `routes.v1.bak`.
+The path is the last part of the line. Thus, the path can contain colons and all other characters.
+
+### Route Names
+
+A route name must not:
+
+- Contain `:`, `[`, or `]`.
+- Start with `-` or `#`.
+- Be the same as a `shtl` command, for example `add` or `list`.
+
+### Files From Older Versions
+
+`shtl` 0.4.0 and the versions before it use the format `NAME:PATH[:persist]`. When a newer `shtl` starts for the first time, it changes the routes file to the new format. It keeps a copy of the initial file as `routes.v1.bak`.
 
 ## How It Works
 
