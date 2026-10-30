@@ -4,6 +4,11 @@
 readonly CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shtl"
 readonly ROUTES_FILE="$CONFIG_DIR/routes"
 
+# First line of the routes file. Each route below it is NAME[FLAGS]:PATH,
+# e.g. work[]:/Users/me/work or nas[persist]:/Volumes/nas. FLAGS is a
+# comma-separated list. PATH comes last so it can contain anything, colons included.
+readonly ROUTES_HEADER="# shtl routes v2"
+
 # Replaced with the contents of VERSION by `make build`
 readonly SHTL_VERSION="__SHTL_VERSION__"
 
@@ -29,14 +34,69 @@ shtl_validate_arguments(){
 }
 
 shtl_init(){
+	local firstLine=""
 	mkdir -p "$CONFIG_DIR"
 	if [[ ! -f $ROUTES_FILE ]]; then
-		touch "$ROUTES_FILE"
+		echo "$ROUTES_HEADER" > "$ROUTES_FILE"
+		return 0
 	fi
+	IFS='' read -r firstLine < "$ROUTES_FILE"
+	if [[ $firstLine == "$ROUTES_HEADER" ]]; then
+		return 0
+	fi
+	if [[ $firstLine == "# shtl routes "* ]]; then
+		shtl_log "ERROR" "${ROUTES_FILE} was written by a newer version of shtl (${firstLine#\# shtl routes }). Please upgrade shtl"
+		exit 1
+	fi
+	shtl_migrate_v1_routes || exit 1
 }
 
+# Converts the original NAME:PATH[:persist] format, read exactly the way
+# older versions read it, and keeps a copy of the original file.
+shtl_migrate_v1_routes(){
+	local entry name path flags
+	local invalid=() converted=()
+	while IFS='' read -r entry || [[ -n "$entry" ]]; do
+		[[ -z ${entry//[[:space:]]/} ]] && continue
+		name="${entry%%:*}"
+		if [[ $entry != *:* ]] || ! shtl_is_valid_name_format "$name"; then
+			invalid+=("$entry")
+			continue
+		fi
+		path="${entry#*:}"
+		flags=""
+		if [[ $path == *:persist ]]; then
+			path="${path%:persist}"
+			flags="persist"
+		fi
+		converted+=("$(shtl_format_entry "$name" "$flags" "$path")")
+	done < "$ROUTES_FILE"
+
+	if [[ ${#invalid[@]} -gt 0 ]]; then
+		shtl_log "ERROR" "Could not update ${ROUTES_FILE} to the new format. Route names can't contain \"[\" or \"]\" or start with \"#\". Rename or remove these entries, then run shtl again: $(printf '\n  %s' "${invalid[@]}")"
+		return 1
+	fi
+
+	# Older versions created an empty file on first run; nothing to convert
+	if [[ ${#converted[@]} -eq 0 ]]; then
+		echo "$ROUTES_HEADER" > "$ROUTES_FILE"
+		return 0
+	fi
+
+	cp "$ROUTES_FILE" "$ROUTES_FILE.v1.bak" || return 1
+	printf '%s\n' "${converted[@]}" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+	shtl_refresh_routes
+	shtl_log "INFO" "Updated ${ROUTES_FILE} to the new format. The original is saved as ${ROUTES_FILE}.v1.bak"
+}
+
+# Rewrites the routes file: header first, then routes sorted by name
 shtl_refresh_routes() {
-  grep -v "^$" "$ROUTES_FILE" | sort --ignore-case  > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE" && echo "" >> "$ROUTES_FILE"
+	{ echo "$ROUTES_HEADER"; shtl_get_entries | sort --ignore-case -t '[' -k1,1; } > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+}
+
+# Prints every route entry, skipping the header, comments and blank lines
+shtl_get_entries() {
+	awk '!/^#/ && /[^[:space:]]/' "$ROUTES_FILE"
 }
 
 shtl_usage() {
@@ -62,22 +122,34 @@ shtl_usage() {
 
 # Names are matched as literal strings, not regexes, so "a.b" can't match "axb"
 shtl_get_route_entry() {
-	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] ":") == 1' "$ROUTES_FILE"
+	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] "[") == 1' "$ROUTES_FILE"
 }
 
 shtl_remove_route_entry() {
-	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] ":") != 1' "$ROUTES_FILE" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] "[") != 1' "$ROUTES_FILE" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
 }
 
-# Strips the route name and any :persist marker from an entry
+# Entry helpers. An entry is NAME[FLAGS]:PATH (see ROUTES_HEADER).
+shtl_format_entry() {
+	echo "${1}[${2}]:${3}"
+}
+
+shtl_get_entry_name() {
+	echo "${1%%\[*}"
+}
+
+shtl_get_entry_flags() {
+	local flags="${1%%:*}"
+	flags="${flags#*\[}"
+	echo "${flags%\]}"
+}
+
 shtl_get_entry_path() {
-	local entry="$1"
-	local route="${entry#*:}"
-	echo "${route%:persist}"
+	echo "${1#*:}"
 }
 
 shtl_entry_is_persistent() {
-	[[ "$1" == *:persist ]]
+	[[ ",$(shtl_get_entry_flags "$1")," == *,persist,* ]]
 }
 
 shtl_get_route() {
@@ -88,11 +160,9 @@ shtl_get_route() {
 
 shtl_get_route_names(){
 	local entry
-	while IFS='' read -r entry || [[ -n "$entry" ]]; do
-		if [[ -n $entry ]]; then
-			echo "${entry%%:*}"
-		fi
-	done < "$ROUTES_FILE"
+	while IFS='' read -r entry; do
+		shtl_get_entry_name "$entry"
+	done < <(shtl_get_entries)
 }
 
 shtl_get_current_path() {
@@ -100,33 +170,41 @@ shtl_get_current_path() {
 }
 
 shtl_has_routes() {
-	grep -q '[^[:space:]]' "$ROUTES_FILE"
+	[[ -n $(shtl_get_entries) ]]
 }
 
+# Prints NAME  PATH columns, marking persistent routes
 shtl_list_routes() {
+	local entry name i width=0
+	local names=() paths=() marks=()
 	if ! shtl_has_routes; then
 		shtl_log "INFO" "No routes yet. Add one with: shtl add NAME [PATH]"
 		return 0
 	fi
-	while IFS='' read -r route || [[ -n "$route" ]]; do
-		if [[ -n $route ]]; then
-			echo "$route"
+	while IFS='' read -r entry; do
+		name="$(shtl_get_entry_name "$entry")"
+		names+=("$name")
+		paths+=("$(shtl_get_entry_path "$entry")")
+		if shtl_entry_is_persistent "$entry"; then
+			marks+=("  (persist)")
+		else
+			marks+=("")
 		fi
-	done < "$ROUTES_FILE"
+		(( ${#name} > width )) && width=${#name}
+	done < <(shtl_get_entries)
+	for i in "${!names[@]}"; do
+		printf '%-*s  %s%s\n' "$width" "${names[i]}" "${paths[i]}" "${marks[i]}"
+	done
 }
 
-shtl_generate_route() {	
+shtl_generate_route() {
 	local currentDir
 	currentDir="$(shtl_get_current_path)"
 	local routeName="$1"
 	local providedPath="$2"
 	local persist="$3"
 	local route="${providedPath:-$currentDir}"
-	if [[ -n $persist ]]; then
-		echo "${routeName}:${route}:persist"
-	else
-		echo "${routeName}:${route}"
-	fi
+	shtl_format_entry "$routeName" "$persist" "$route"
 }
 
 shtl_route_name_exists(){
@@ -137,10 +215,16 @@ shtl_is_command(){
 	[[ " $SHTL_COMMANDS " == *" $1 "* ]]
 }
 
+# Characters the routes file format reserves: ":" and "[ ]" delimit an
+# entry and "#" starts a comment
+shtl_is_valid_name_format(){
+	[[ -n $1 && $1 != *:* && $1 != *'['* && $1 != *']'* && $1 != '#'* ]]
+}
+
 shtl_add_route(){
-	# Names can't start with "-" (flags), contain ":" (the separator), or be a subcommand
-	if [[ $1 == -* || $1 == *:* ]] || shtl_is_command "$1"; then
-		shtl_log "ERROR" "Route names can't start with \"-\", contain \":\", or be a shtl command (${SHTL_COMMANDS// /, })"
+	# Names also can't start with "-" (flags) or be a subcommand
+	if [[ $1 == -* ]] || ! shtl_is_valid_name_format "$1" || shtl_is_command "$1"; then
+		shtl_log "ERROR" "Route names can't start with \"-\" or \"#\", contain \":\", \"[\" or \"]\", or be a shtl command (${SHTL_COMMANDS// /, })"
 		return 1
 	fi
 	if shtl_route_name_exists "$1"; then
@@ -187,15 +271,14 @@ shtl_clean_routes() {
 		return 0
 	fi
 
-	while IFS='' read -r entry || [[ -n "$entry" ]]; do
-		[[ -z $entry ]] && continue
+	while IFS='' read -r entry; do
 		shtl_entry_is_persistent "$entry" && continue
 		path="$(shtl_get_entry_path "$entry")"
 		[[ -d $path ]] && continue
-		names+=("${entry%%:*}")
+		names+=("$(shtl_get_entry_name "$entry")")
 		paths+=("$path")
 		selected+=(1)
-	done < "$ROUTES_FILE"
+	done < <(shtl_get_entries)
 
 	if [[ ${#names[@]} -eq 0 ]]; then
 		shtl_log "INFO" "All routes point to existing directories"
@@ -269,17 +352,23 @@ shtl_clean_routes() {
 
 shtl_toggle_persist() {
 	local routeName="$1"
-	local entry newEntry
+	local entry newEntry flags
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Could not persist route \"${routeName}\". The route does not exist"
 		return 1
 	fi
 	entry="$(shtl_get_route_entry "$routeName")"
+	flags="$(shtl_get_entry_flags "$entry")"
 	if shtl_entry_is_persistent "$entry"; then
-		newEntry="${entry%:persist}"
+		# Drop "persist" from the comma-separated flags, keeping any others
+		flags=",${flags},"
+		flags="${flags//,persist,/,}"
+		flags="${flags#,}"
+		flags="${flags%,}"
 	else
-		newEntry="${entry}:persist"
+		flags="${flags:+${flags},}persist"
 	fi
+	newEntry="$(shtl_format_entry "$routeName" "$flags" "$(shtl_get_entry_path "$entry")")"
 	shtl_remove_route_entry "$routeName"
 	echo "$newEntry" >> "$ROUTES_FILE" && shtl_refresh_routes
 	if shtl_entry_is_persistent "$newEntry"; then

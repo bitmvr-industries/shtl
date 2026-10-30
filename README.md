@@ -67,6 +67,25 @@ shtl - Help
 
 ```
 
+## Routes File
+
+Routes live in `~/.config/shtl/routes` (or `$XDG_CONFIG_HOME/shtl/routes`),
+one per line as `NAME[FLAGS]:PATH`. It's plain text, safe to edit by hand:
+
+```
+# shtl routes v2
+nas[persist]:/Volumes/nas
+work[]:/Users/me/work
+```
+
+`FLAGS` is a comma-separated list; `persist` is the only flag today. The
+path comes last, so it can contain anything, colons included. Route names
+can't contain `:`, `[` or `]`, or start with `-` or `#`.
+
+Routes files from shtl 0.4.0 and earlier (`NAME:PATH[:persist]`) are
+converted automatically the first time a newer shtl runs, and the original
+is kept as `routes.v1.bak`.
+
 ## Contribute
 
 1. Clone this repository

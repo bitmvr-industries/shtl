@@ -7,27 +7,28 @@ load test_helper
 @test "add stores a route with the given path" {
 	run shtl add work "$DIR_A"
 	[ "$status" -eq 0 ]
-	[ "$(routes)" = "work:$DIR_A" ]
+	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
 @test "add defaults to the current directory" {
 	cd "$DIR_B"
 	run shtl add here
 	[ "$status" -eq 0 ]
-	[ "$(routes)" = "here:$(pwd)" ]
+	[ "$(routes)" = "here[]:$(pwd)" ]
 }
 
 @test "add --persist marks the route persistent" {
 	run shtl add work "$DIR_A" --persist
 	[ "$status" -eq 0 ]
-	[ "$(routes)" = "work:$DIR_A:persist" ]
+	[ "$(routes)" = "work[persist]:$DIR_A" ]
 }
 
 @test "add keeps routes sorted case-insensitively" {
 	shtl add b "$DIR_A"
 	shtl add C "$DIR_A"
 	shtl add a "$DIR_A"
-	[ "$(routes | cut -d: -f1 | tr '\n' ' ')" = "a b C " ]
+	shtl add ab "$DIR_A"
+	[ "$(shtl list --names | tr '\n' ' ')" = "a ab b C " ]
 }
 
 @test "add rejects a duplicate name" {
@@ -35,7 +36,7 @@ load test_helper
 	run shtl add work "$DIR_B"
 	[ "$status" -eq 1 ]
 	[[ $output == *"already exists"* ]]
-	[ "$(routes)" = "work:$DIR_A" ]
+	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
 @test "add requires a name" {
@@ -100,7 +101,7 @@ load test_helper
 	shtl add a.b "$DIR_B"
 	run shtl remove a.b
 	[ "$status" -eq 0 ]
-	[ "$(routes)" = "axb:$DIR_A" ]
+	[ "$(routes)" = "axb[]:$DIR_A" ]
 }
 
 @test "rm is an alias for remove" {
@@ -124,12 +125,12 @@ load test_helper
 	[[ $output == *"No routes yet"* ]]
 }
 
-@test "list prints every route entry" {
+@test "list prints names and paths in columns, marking persistent routes" {
 	shtl add a "$DIR_A"
-	shtl add b "$DIR_B" --persist
-	run shtl ls
+	shtl add longer "$DIR_B" --persist
+	run --separate-stderr shtl ls
 	[ "$status" -eq 0 ]
-	[ "$output" = "a:$DIR_A"$'\n'"b:$DIR_B:persist" ]
+	[ "$output" = "a       $DIR_A"$'\n'"longer  $DIR_B  (persist)" ]
 }
 
 @test "list --names prints only names" {
@@ -176,18 +177,18 @@ load test_helper
 	run shtl persist work
 	[ "$status" -eq 0 ]
 	[[ $output == *"now persistent"* ]]
-	[ "$(routes)" = "work:$DIR_A:persist" ]
+	[ "$(routes)" = "work[persist]:$DIR_A" ]
 
 	run shtl persist work
 	[[ $output == *"no longer persistent"* ]]
-	[ "$(routes)" = "work:$DIR_A" ]
+	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
 @test "persist only touches the named route" {
 	shtl add axb "$DIR_A"
 	shtl add a.b "$DIR_B"
 	shtl persist a.b
-	[ "$(routes)" = "a.b:$DIR_B:persist"$'\n'"axb:$DIR_A" ]
+	[ "$(routes)" = "a.b[persist]:$DIR_B"$'\n'"axb[]:$DIR_A" ]
 }
 
 @test "persist fails for an unknown route" {

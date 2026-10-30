@@ -20,7 +20,13 @@ setup() {
 	MISSING_DIR="$BATS_TEST_TMPDIR/missing"
 }
 
-# Prints the routes file without the trailing blank line shtl keeps
+# Prints the route entries, without the header line
 routes() {
-	grep -v '^$' "$ROUTES_FILE"
+	grep -v '^#' "$ROUTES_FILE"
+}
+
+# Writes a routes file in the original NAME:PATH[:persist] format
+write_v1_routes() {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "$@" > "$ROUTES_FILE"
 }

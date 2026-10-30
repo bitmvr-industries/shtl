@@ -47,7 +47,7 @@ load test_helper
 	run shtl clean < /dev/null
 	[ "$status" -eq 1 ]
 	[[ $output == *"needs an interactive terminal"* ]]
-	[ "$(routes)" = "old:$MISSING_DIR" ]
+	[ "$(routes)" = "old[]:$MISSING_DIR" ]
 }
 
 # init: the shell function
