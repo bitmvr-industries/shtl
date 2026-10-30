@@ -94,14 +94,18 @@ load test_helper
 	[ "$output" = "$DIR_B" ]
 }
 
-# Relative paths are stored as absolute paths
+# Paths must be absolute
 
-@test "add stores relative paths as absolute paths" {
+@test "add rejects relative paths" {
 	cd "$DIR_A"
-	shtl add dot .
-	shtl add parent ..
-	shtl add sub ./x/../y/
-	[ "$(routes)" = "dot[]:$DIR_A"$'\n'"parent[]:$BATS_TEST_TMPDIR"$'\n'"sub[]:$DIR_A/y" ]
+	# A quoted "~/x" reaches shtl unexpanded, so it's relative too
+	# shellcheck disable=SC2088
+	for path in . .. ./x x/y '~/x'; do
+		run shtl add rel "$path"
+		[ "$status" -eq 1 ]
+		[[ $output == *"is not an absolute path"* ]]
+	done
+	[ -z "$(routes)" ]
 }
 
 @test "add removes extra slashes and dot segments from absolute paths" {
@@ -109,10 +113,15 @@ load test_helper
 	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
-@test "add stores a missing relative path as absolute with --persist" {
-	cd "$DIR_A"
-	shtl add later not/yet --persist
-	[ "$(routes)" = "later[persist]:$DIR_A/not/yet" ]
+@test "add --persist accepts a missing absolute path" {
+	shtl add later "$MISSING_DIR" --persist
+	[ "$(routes)" = "later[persist]:$MISSING_DIR" ]
+}
+
+@test "add --persist rejects relative paths" {
+	run shtl add later not/yet --persist
+	[ "$status" -eq 1 ]
+	[ -z "$(routes)" ]
 }
 
 # update
@@ -132,11 +141,13 @@ load test_helper
 	[ "$(routes)" = "work[]:$DIR_B" ]
 }
 
-@test "update stores relative paths as absolute paths" {
+@test "update rejects relative paths and leaves the route alone" {
 	shtl add work "$DIR_A"
 	cd "$DIR_A"
-	shtl update work ../b
-	[ "$(routes)" = "work[]:$DIR_B" ]
+	run shtl update work ../b
+	[ "$status" -eq 1 ]
+	[[ $output == *"is not an absolute path"* ]]
+	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
 @test "update keeps the route's flags" {

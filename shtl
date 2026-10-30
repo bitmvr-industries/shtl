@@ -106,9 +106,9 @@ shtl_usage() {
 	echo "         shtl COMMAND [ARGS]"
 	echo ""
 	echo "    ROUTE_NAME                      Jump to a route (needs the shell function, see init)"
-	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH defaults to the current directory"
+	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory"
 	echo "                                    --persist keeps the route even if its directory doesn't exist (clean skips it)"
-	echo "    update NAME [PATH]              Point a route at a new path. PATH defaults to the current directory"
+	echo "    update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory"
 	echo "    remove | rm NAME                Remove a route"
 	echo "    list | ls                       List routes"
 	echo "    clean                           Interactively remove routes whose directories no longer exist"
@@ -169,13 +169,12 @@ shtl_get_current_path() {
 	pwd
 }
 
-# Makes a path absolute and removes ".", ".." and extra slashes, without
+# Removes ".", ".." and extra slashes from an absolute path, without
 # touching the filesystem: the directory may not exist yet (--persist), and
 # symlinks are kept as typed, the same way pwd reports them
-shtl_absolute_path() {
+shtl_normalize_path() {
 	local path="$1" part
 	local parts=() kept=()
-	[[ $path != /* ]] && path="$(shtl_get_current_path)/$path"
 	IFS='/' read -r -a parts <<< "$path"
 	for part in "${parts[@]}"; do
 		case $part in
@@ -228,7 +227,7 @@ shtl_generate_route() {
 	local providedPath="$2"
 	local persist="$3"
 	local route
-	route="$(shtl_absolute_path "${providedPath:-$currentDir}")"
+	route="$(shtl_normalize_path "${providedPath:-$currentDir}")"
 	shtl_format_entry "$routeName" "$persist" "$route"
 }
 
@@ -246,6 +245,14 @@ shtl_is_valid_name_format(){
 	[[ -n $1 && $1 != *:* && $1 != *'['* && $1 != *']'* && $1 != '#'* ]]
 }
 
+# A given PATH must be absolute. Leaving it out uses the current directory.
+shtl_validate_path(){
+	if [[ -n $1 && $1 != /* ]]; then
+		shtl_log "ERROR" "\"${1}\" is not an absolute path. Use a full path starting with \"/\", or leave PATH out to use the current directory"
+		return 1
+	fi
+}
+
 shtl_add_route(){
 	# Names also can't start with "-" (flags) or be a subcommand
 	if [[ $1 == -* ]] || ! shtl_is_valid_name_format "$1" || shtl_is_command "$1"; then
@@ -256,6 +263,7 @@ shtl_add_route(){
 		shtl_log "ERROR" "It appears this route already exists in your routes"
 		return 1
 	fi	
+	shtl_validate_path "$2" || return 1
 	shtl_generate_route "$@" >> "$ROUTES_FILE" && shtl_refresh_routes
 }
 
@@ -278,8 +286,9 @@ shtl_update_route() {
 		shtl_log "ERROR" "Could not update route \"${routeName}\". The route does not exist"
 		return 1
 	fi
+	shtl_validate_path "$providedPath" || return 1
 	entry="$(shtl_get_route_entry "$routeName")"
-	route="$(shtl_absolute_path "${providedPath:-$(shtl_get_current_path)}")"
+	route="$(shtl_normalize_path "${providedPath:-$(shtl_get_current_path)}")"
 	shtl_remove_route_entry "$routeName"
 	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes
 	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
