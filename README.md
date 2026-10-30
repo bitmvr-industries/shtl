@@ -80,7 +80,7 @@ shtl - Help
 
     ROUTE_NAME                      Jump to a route (needs the shell function, see init)
     add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory
-                                    --persist keeps the route even if its directory doesn't exist (clean skips it)
+                                    --persist allows a directory that doesn't exist yet, and clean skips the route
     update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory
     remove | rm NAME                Remove a route
     list | ls                       List routes
@@ -128,7 +128,7 @@ work[]:/Users/me/work
 | `FLAGS` | A list of flags, with a comma between each flag. The list can be empty. |
 | `PATH` | The absolute path of the directory. |
 
-At this time, `persist` is the only flag. `shtl clean` does not remove a route that has the `persist` flag.
+At this time, `persist` is the only flag. A route that has the `persist` flag can point to a directory that is not on the computer at this time. Use it to prepare routes for a different computer. `shtl clean` does not remove a route that has the `persist` flag.
 
 The path is the last part of the line. Thus, the path can contain colons and all other characters.
 

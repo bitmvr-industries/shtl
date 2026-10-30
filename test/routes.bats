@@ -118,6 +118,13 @@ load test_helper
 	[ "$(routes)" = "later[persist]:$MISSING_DIR" ]
 }
 
+@test "add rejects a missing directory without --persist" {
+	run shtl add later "$MISSING_DIR"
+	[ "$status" -eq 1 ]
+	[[ $output == *"does not exist"*"--persist"* ]]
+	[ -z "$(routes)" ]
+}
+
 @test "add --persist rejects relative paths" {
 	run shtl add later not/yet --persist
 	[ "$status" -eq 1 ]
@@ -154,6 +161,20 @@ load test_helper
 	shtl add work "$DIR_A" --persist
 	shtl update work "$DIR_B"
 	[ "$(routes)" = "work[persist]:$DIR_B" ]
+}
+
+@test "update rejects a missing directory for a route that is not persistent" {
+	shtl add work "$DIR_A"
+	run shtl update work "$MISSING_DIR"
+	[ "$status" -eq 1 ]
+	[[ $output == *"does not exist"*"persist"* ]]
+	[ "$(routes)" = "work[]:$DIR_A" ]
+}
+
+@test "update accepts a missing directory for a persistent route" {
+	shtl add work "$DIR_A" --persist
+	shtl update work "$MISSING_DIR"
+	[ "$(routes)" = "work[persist]:$MISSING_DIR" ]
 }
 
 @test "update only touches the named route" {
@@ -264,7 +285,9 @@ load test_helper
 }
 
 @test "path fails when the directory is gone" {
+	mkdir "$MISSING_DIR"
 	shtl add old "$MISSING_DIR"
+	rmdir "$MISSING_DIR"
 	run --separate-stderr shtl path old
 	[ "$status" -eq 1 ]
 	[ -z "$output" ]

@@ -70,7 +70,7 @@ shtl_usage() {
 	echo ""
 	echo "    ROUTE_NAME                      Jump to a route (needs the shell function, see init)"
 	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory"
-	echo "                                    --persist keeps the route even if its directory doesn't exist (clean skips it)"
+	echo "                                    --persist allows a directory that doesn't exist yet, and clean skips the route"
 	echo "    update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory"
 	echo "    remove | rm NAME                Remove a route"
 	echo "    list | ls                       List routes"
@@ -227,6 +227,11 @@ shtl_add_route(){
 		return 1
 	fi	
 	shtl_validate_path "$2" || return 1
+	# Only a persistent route can point to a directory that doesn't exist yet
+	if [[ -z $3 && -n $2 && ! -d $2 ]]; then
+		shtl_log "ERROR" "\"${2}\" does not exist. To add a route for a directory that will exist later, use --persist"
+		return 1
+	fi
 	shtl_generate_route "$@" >> "$ROUTES_FILE" && shtl_refresh_routes
 }
 
@@ -251,6 +256,10 @@ shtl_update_route() {
 	fi
 	shtl_validate_path "$providedPath" || return 1
 	entry="$(shtl_get_route_entry "$routeName")"
+	if [[ -n $providedPath && ! -d $providedPath ]] && ! shtl_entry_is_persistent "$entry"; then
+		shtl_log "ERROR" "\"${providedPath}\" does not exist. Only a persistent route can point to a missing directory. To make this route persistent, run: shtl persist ${routeName}"
+		return 1
+	fi
 	route="$(shtl_normalize_path "${providedPath:-$(shtl_get_current_path)}")"
 	shtl_remove_route_entry "$routeName"
 	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes

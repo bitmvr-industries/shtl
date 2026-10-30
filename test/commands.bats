@@ -43,7 +43,9 @@ load test_helper
 }
 
 @test "clean refuses to run without a terminal" {
+	mkdir "$MISSING_DIR"
 	shtl add old "$MISSING_DIR"
+	rmdir "$MISSING_DIR"
 	run shtl clean < /dev/null
 	[ "$status" -eq 1 ]
 	[[ $output == *"needs an interactive terminal"* ]]
