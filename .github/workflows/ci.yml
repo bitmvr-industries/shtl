@@ -21,18 +21,12 @@ jobs:
           shellcheck --version
       - run: make lint
 
+  # Linux only. macOS is covered by running `make test` locally, which also
+  # runs on the stock macOS bash 3.2
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install bats and zsh (Linux)
-        if: runner.os == 'Linux'
+      - name: Install bats and zsh
         run: sudo apt-get update && sudo apt-get install -y bats zsh
-      - name: Install bats (macOS)
-        if: runner.os == 'macOS'
-        run: brew install bats-core
       - run: make test
