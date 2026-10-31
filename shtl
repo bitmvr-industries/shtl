@@ -92,10 +92,10 @@ shtl_usage() {
 	echo ""
 	echo "$(basename "$0") - Help"
 	echo ""
-	echo "  Usage: shtl ROUTE_NAME"
+	echo "  Usage: shtl ROUTE_NAME [SUBDIR]"
 	echo "         shtl COMMAND [ARGS]"
 	echo ""
-	echo "    ROUTE_NAME                      Jump to a route (needs the shell function, see init)"
+	echo "    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see init)"
 	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory"
 	echo "                                    --persist allows a directory that doesn't exist yet, and clean skips the route"
 	echo "    update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory"
@@ -103,7 +103,7 @@ shtl_usage() {
 	echo "    list | ls                       List routes. * marks the route you are in"
 	echo "    clean                           Interactively remove routes whose directories no longer exist"
 	echo "    persist NAME                    Toggle whether clean skips a route"
-	echo "    path NAME                       Print a route's path (e.g. cp file \"\$(shtl path work)\")"
+	echo "    path NAME [SUBDIR]              Print a route's path (e.g. cp file \"\$(shtl path work)\")"
 	echo "    doctor                          Check the routes file for problems"
 	echo "    init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
 	echo "    help                            Display this information"
@@ -522,9 +522,10 @@ shtl_toggle_persist() {
 	fi
 }
 
-# Prints only the route's path, for the shell function and for use in scripts
+# Prints only the route's path, for the shell function and for use in
+# scripts. An optional second argument is a folder under the route.
 shtl_print_path(){
-	local routeName="$1"
+	local routeName="$1" subdir="$2"
 	local path
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Route \"${routeName}\" does not exist"
@@ -536,13 +537,24 @@ shtl_print_path(){
 		shtl_log "ERROR" "Route \"${routeName}\" points to ${path}, which doesn't exist"
 		return 1
 	fi
+	if [[ -n $subdir ]]; then
+		if [[ $subdir == /* ]]; then
+			shtl_log "ERROR" "\"${subdir}\" must be relative to the route. Leave out the leading \"/\""
+			return 1
+		fi
+		path="$(shtl_normalize_path "${path}/${subdir}")"
+		if [[ ! -d $path ]]; then
+			shtl_log "ERROR" "\"${path}\" does not exist"
+			return 1
+		fi
+	fi
 	echo "$path"
 }
 
 # A script can't change its parent shell's directory. Without the shell
 # function from `shtl init`, print the path and explain how to set it up.
 shtl_route(){
-	shtl_print_path "$1" || return 1
+	shtl_print_path "$1" "$2" || return 1
 	shtl_log "WARN" "shtl can't change directory without its shell function. Add this to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
 }
 
@@ -629,7 +641,7 @@ shtl() {
 		""|-*|__SHTL_COMMAND_PATTERN__) command shtl "$@" ;;
 		*)
 			local dest
-			dest="$(command shtl path "$1")" && cd -- "$dest"
+			dest="$(command shtl path "$@")" && cd -- "$dest"
 			;;
 	esac
 }
@@ -637,6 +649,7 @@ shtl() {
 if [ -n "$ZSH_VERSION" ]; then
 	_shtl() {
 		local -a routes subcommands
+		local base
 		routes=(${(f)"$(command shtl list --names)"})
 		subcommands=(__SHTL_COMMANDS__)
 		if (( CURRENT == 2 )); then
@@ -645,15 +658,34 @@ if [ -n "$ZSH_VERSION" ]; then
 		elif (( CURRENT == 3 )); then
 			case "${words[2]}" in
 				remove|rm|update|persist|path) compadd -a routes ;;
+				*)
+					# A route: complete folders under its path
+					if (( ! ${subcommands[(Ie)${words[2]}]} )); then
+						base="$(command shtl path "${words[2]}" 2>/dev/null)" && _files -/ -W "$base"
+					fi
+					;;
 			esac
 		elif (( CURRENT == 4 )) && [[ "${words[2]}" == add || "${words[2]}" == update ]]; then
 			_files -/
+		elif (( CURRENT == 4 )) && [[ "${words[2]}" == path ]]; then
+			base="$(command shtl path "${words[3]}" 2>/dev/null)" && _files -/ -W "$base"
 		fi
 	}
 	if (( $+functions[compdef] )); then
 		compdef _shtl shtl
 	fi
 elif [ -n "$BASH_VERSION" ]; then
+	# Folders under route $1 that start with $2, each ending in "/" so Tab can
+	# go a level deeper. bash 3.2 has no compopt, so it adds a space after each.
+	_shtl_subdirs() {
+		local base dir IFS=$'\n'
+		base="$(command shtl path "$1" 2>/dev/null)" || return
+		COMPREPLY=()
+		for dir in $(cd -- "$base" && compgen -d -- "$2"); do
+			COMPREPLY+=("$dir/")
+		done
+		compopt -o nospace 2>/dev/null
+	}
 	_shtl() {
 		local cur="${COMP_WORDS[COMP_CWORD]}"
 		local words=""
@@ -662,7 +694,16 @@ elif [ -n "$BASH_VERSION" ]; then
 		elif [ "$COMP_CWORD" -eq 2 ]; then
 			case "${COMP_WORDS[1]}" in
 				remove|rm|update|persist|path) words="$(command shtl list --names)" ;;
+				*)
+					case " __SHTL_COMMANDS__ " in
+						*" ${COMP_WORDS[1]} "*) ;;
+						*) _shtl_subdirs "${COMP_WORDS[1]}" "$cur"; return ;;
+					esac
+					;;
 			esac
+		elif [ "$COMP_CWORD" -eq 3 ] && [ "${COMP_WORDS[1]}" = path ]; then
+			_shtl_subdirs "${COMP_WORDS[2]}" "$cur"
+			return
 		elif [ "$COMP_CWORD" -eq 3 ] && { [ "${COMP_WORDS[1]}" = add ] || [ "${COMP_WORDS[1]}" = update ]; }; then
 			COMPREPLY=($(compgen -d -- "$cur"))
 			return
@@ -734,7 +775,7 @@ case $subcommand in
 		;;
 	path)
 		shtl_validate_arguments "$@"
-		shtl_print_path "$1"
+		shtl_print_path "$1" "$2"
 		;;
 	doctor)
 		shtl_doctor
@@ -747,7 +788,7 @@ case $subcommand in
 		;;
 	*)
 		if shtl_route_name_exists "$subcommand"; then
-			shtl_route "$subcommand"
+			shtl_route "$subcommand" "$1"
 		else
 			shtl_log "ERROR" "\"${subcommand}\" is not a shtl command or route"
 			shtl_suggest_routes "$subcommand" || shtl_usage

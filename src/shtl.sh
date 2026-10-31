@@ -52,7 +52,7 @@ case $subcommand in
 		;;
 	path)
 		shtl_validate_arguments "$@"
-		shtl_print_path "$1"
+		shtl_print_path "$1" "$2"
 		;;
 	doctor)
 		shtl_doctor
@@ -65,7 +65,7 @@ case $subcommand in
 		;;
 	*)
 		if shtl_route_name_exists "$subcommand"; then
-			shtl_route "$subcommand"
+			shtl_route "$subcommand" "$1"
 		else
 			shtl_log "ERROR" "\"${subcommand}\" is not a shtl command or route"
 			shtl_suggest_routes "$subcommand" || shtl_usage

@@ -98,10 +98,10 @@ To add the shell function without `make install`, do the steps for your shell.
 
 shtl - Help
 
-  Usage: shtl ROUTE_NAME
+  Usage: shtl ROUTE_NAME [SUBDIR]
          shtl COMMAND [ARGS]
 
-    ROUTE_NAME                      Jump to a route (needs the shell function, see init)
+    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see init)
     add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory
                                     --persist allows a directory that doesn't exist yet, and clean skips the route
     update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory
@@ -109,7 +109,7 @@ shtl - Help
     list | ls                       List routes. * marks the route you are in
     clean                           Interactively remove routes whose directories no longer exist
     persist NAME                    Toggle whether clean skips a route
-    path NAME                       Print a route's path (e.g. cp file "$(shtl path work)")
+    path NAME [SUBDIR]              Print a route's path (e.g. cp file "$(shtl path work)")
     doctor                          Check the routes file for problems
     init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval "$(shtl init)"
     help                            Display this information
@@ -125,6 +125,7 @@ To go to a route, enter `shtl ROUTE_NAME`. These are examples of the commands:
 shtl add work              # save the current directory as "work"
 shtl add nas /Volumes/nas --persist
 shtl work                  # jump there
+shtl work code/api         # jump to a folder under the route (Tab completes it)
 shtl ls                    # list routes, * marks the one you are in
 shtl clean                 # remove routes whose directories are gone
 shtl doctor                # find problems in the routes file
