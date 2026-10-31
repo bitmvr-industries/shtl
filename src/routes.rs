@@ -30,6 +30,8 @@ pub struct Route {
     pub hosts: Option<Vec<String>>,
     /// Line of the route's `[[route]]` header, from 1
     pub line: usize,
+    /// Position in the file's `[[route]]` list, from 0
+    pub index: usize,
 }
 
 #[derive(Debug, PartialEq)]
@@ -72,11 +74,12 @@ pub fn parse(text: &str) -> Result<Vec<Route>, ParseError> {
     };
     tables
         .iter()
-        .map(|table| parse_route(table, line_at(text, table.span())))
+        .enumerate()
+        .map(|(index, table)| parse_route(table, line_at(text, table.span()), index))
         .collect()
 }
 
-fn parse_route(table: &Table, line: usize) -> Result<Route, ParseError> {
+fn parse_route(table: &Table, line: usize, index: usize) -> Result<Route, ParseError> {
     let invalid = |msg: &str| ParseError::Invalid {
         line,
         msg: msg.into(),
@@ -113,6 +116,7 @@ fn parse_route(table: &Table, line: usize) -> Result<Route, ParseError> {
         persist,
         hosts,
         line,
+        index,
     })
 }
 
@@ -153,13 +157,25 @@ pub fn file_path() -> PathBuf {
 /// Reads the routes file. No file means no routes: reading never creates
 /// it. Errors are messages for the user.
 pub fn load(file: &Path) -> Result<Vec<Route>, String> {
+    match read_text(file)? {
+        None => Ok(vec![]),
+        Some(text) => parse_file(file, &text),
+    }
+}
+
+/// The routes file's text, or None when there is no file
+pub fn read_text(file: &Path) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(file) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("Could not read {}: {e}", file.display())),
+    }
+}
+
+/// `parse`, with errors as messages for the user that name the file
+pub fn parse_file(file: &Path, text: &str) -> Result<Vec<Route>, String> {
     let shown = file.display();
-    let text = match std::fs::read_to_string(file) {
-        Ok(text) => text,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
-        Err(e) => return Err(format!("Could not read {shown}: {e}")),
-    };
-    parse(&text).map_err(|e| match e {
+    parse(text).map_err(|e| match e {
         ParseError::Syntax(msg) => format!("{shown} is not valid TOML. {}", msg.trim_end()),
         ParseError::Version => format!(
             "{shown} is not a shtl {VERSION} routes file. It must have the line: version = {VERSION}. To find the problem, run: shtl doctor"
@@ -181,6 +197,7 @@ mod tests {
             persist: false,
             hosts: hosts.map(|h| h.iter().map(|s| s.to_string()).collect()),
             line,
+            index: 0,
         }
     }
 
@@ -194,6 +211,7 @@ mod tests {
                 route("work", "~/work", None, 4),
                 Route {
                     persist: true,
+                    index: 1,
                     ..route("nas", "/Volumes/nas", Some(&["midgard", "mbp"]), 8)
                 },
             ]

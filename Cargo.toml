@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 gethostname = "1.1.0"
+tempfile = "3.27.0"
 toml_edit = "0.25.17"
 
 [dev-dependencies]

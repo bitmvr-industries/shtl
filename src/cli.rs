@@ -4,7 +4,8 @@ use std::process::ExitCode;
 
 use crate::commands::{COMMANDS, is_command};
 use crate::routes::{self, Route};
-use crate::{host, log, paths};
+use crate::store::{NewRoute, Store};
+use crate::{change, host, log, paths};
 
 const USAGE: &str = r#"
 shtl - Help
@@ -49,6 +50,7 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         "list" | "ls" => list(rest),
         "path" => path(rest),
+        "add" => add(rest),
         "init" => {
             print!("{}", init_script());
             Ok(())
@@ -87,10 +89,114 @@ fn fail(msg: &str) -> Failed {
 }
 
 /// The first argument, the route name all route commands need
-fn route_name(args: &[String]) -> Result<&str, Failed> {
-    args.first()
+fn route_name(first: Option<&str>) -> Result<&str, Failed> {
+    first.ok_or_else(|| fail("Please provide a route name"))
+}
+
+/// Names are free text in TOML. They can't start with "-" (flags), have
+/// white space (completion splits on it), or be a command.
+fn valid_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('-')
+        && !name.chars().any(|c| c.is_whitespace() || c.is_control())
+        && !is_command(name)
+}
+
+fn open_store() -> Result<Store, Failed> {
+    Store::open(&routes::file_path()).map_err(|msg| fail(&msg))
+}
+
+/// The path a route stores, as a real path: PATH (absolute, or ~/...) or
+/// the current directory, normalized
+fn resolve_path(given: Option<&str>) -> Result<String, Failed> {
+    let path = match given {
+        Some(given) => {
+            let path = paths::expand(given, &home());
+            if !path.starts_with('/') {
+                return Err(fail(&format!(
+                    "\"{given}\" is not an absolute path. Use a full path starting with \"/\", or leave PATH out to use the current directory"
+                )));
+            }
+            path
+        }
+        None => paths::current_dir().ok_or_else(|| {
+            fail("The current directory does not exist anymore. Give a PATH, or cd to an existing directory")
+        })?,
+    };
+    Ok(paths::normalize(&path))
+}
+
+/// A route points to a directory. Only a persistent route can point to one
+/// that doesn't exist yet.
+fn check_dir(path: &str, persist: bool, hint: &str) -> Outcome {
+    let meta = std::fs::metadata(path);
+    if meta.as_ref().is_ok_and(|m| !m.is_dir()) {
+        return Err(fail(&format!("\"{path}\" is not a directory")));
+    }
+    if !persist && meta.is_err() {
+        return Err(fail(&format!(
+            "\"{path}\" does not exist. Only a persistent route can point to a missing directory. {hint}"
+        )));
+    }
+    Ok(())
+}
+
+/// Warns about this host's other routes to the same directory
+fn warn_shared_dir(all: &[Route], name: &str, path: &str) {
+    let home = home();
+    for route in sorted_for_host(all) {
+        if route.name != name && paths::normalize(&paths::expand(&route.path, &home)) == path {
+            log::warn(&format!("Route \"{}\" also points to {path}", route.name));
+        }
+    }
+}
+
+/// `add NAME [PATH] [-p|--persist]`. Records this host: joins another
+/// host's route with the same name, path and persist, or writes a new one.
+fn add(args: &[String]) -> Outcome {
+    let persist = args.iter().any(|a| a == "-p" || a == "--persist");
+    let words: Vec<&str> = args
+        .iter()
         .map(String::as_str)
-        .ok_or_else(|| fail("Please provide a route name"))
+        .filter(|a| *a != "-p" && *a != "--persist")
+        .collect();
+    let name = route_name(words.first().copied())?;
+    let mut store = open_store()?;
+    if !valid_name(name) {
+        return Err(fail(&format!(
+            "Route names can't be empty, start with \"-\", contain spaces or control characters, or be a shtl command ({})",
+            COMMANDS.join(", ")
+        )));
+    }
+    let exists = || {
+        fail(&format!(
+            "Route \"{name}\" already exists. To change its path, run: shtl update {name} PATH"
+        ))
+    };
+    if find(&store.routes, name).is_some() {
+        return Err(exists());
+    }
+    let path = resolve_path(words.get(1).copied())?;
+    check_dir(
+        &path,
+        persist,
+        "To add a route for a directory that will exist later, use --persist",
+    )?;
+    let stored = paths::contract(&path, &home());
+    let host = host::this_host();
+    match change::add(&store.routes, name, &stored, persist, &host) {
+        change::Add::Exists => return Err(exists()),
+        change::Add::AddHost(index) => store.add_host(index, &host),
+        change::Add::New => store.push(&NewRoute {
+            name: name.into(),
+            path: stored,
+            persist,
+            hosts: vec![host],
+        }),
+    }
+    store.save().map_err(|msg| fail(&msg))?;
+    warn_shared_dir(&store.routes, name, &path);
+    Ok(())
 }
 
 /// This host's route with this name
@@ -143,7 +249,7 @@ fn route_dir(route: &Route, subdir: Option<&str>) -> Result<String, Failed> {
 
 /// Prints only the path, for the shell function and for scripts
 fn path(args: &[String]) -> Outcome {
-    let name = route_name(args)?;
+    let name = route_name(args.first().map(String::as_str))?;
     let all = load()?;
     let Some(route) = find(&all, name) else {
         log::error(&format!("Route \"{name}\" does not exist"));
