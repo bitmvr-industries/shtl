@@ -38,3 +38,9 @@ add_route() {
 		printf 'hosts = ["%s"]\n' "$3" >> "$ROUTES_FILE"
 	fi
 }
+
+# Points HOME at a throwaway directory for the rest of the test
+use_test_home() {
+	export HOME="$BATS_TEST_TMPDIR/home"
+	mkdir -p "$HOME"
+}

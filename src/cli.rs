@@ -56,6 +56,8 @@ pub fn run(args: &[String]) -> ExitCode {
         "persist" => persist(rest),
         "clean" => clean(),
         "doctor" => doctor(),
+        "setup" => crate::setup::setup().map_err(|msg| fail(&msg)),
+        "unsetup" => crate::setup::unsetup().map_err(|msg| fail(&msg)),
         "init" => {
             print!("{}", init_script());
             Ok(())

@@ -7,4 +7,5 @@ pub mod host;
 pub mod log;
 pub mod paths;
 pub mod routes;
+pub mod setup;
 pub mod store;
