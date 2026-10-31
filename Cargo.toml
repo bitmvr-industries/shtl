@@ -11,6 +11,13 @@ name = "shtl"
 path = "src/main.rs"
 
 [dependencies]
+gethostname = "1.1.0"
+toml_edit = "0.25.17"
 
 [dev-dependencies]
 assert_cmd = "2.2.2"
+tempfile = "3.27.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+system-configuration-sys = "0.6"

@@ -9,6 +9,14 @@ pub fn error(msg: &str) {
     eprintln!("{}", format("ERROR", msg));
 }
 
+pub fn warn(msg: &str) {
+    eprintln!("{}", format("WARN", msg));
+}
+
+pub fn info(msg: &str) {
+    eprintln!("{}", format("INFO", msg));
+}
+
 #[cfg(test)]
 mod tests {
     use super::format;
