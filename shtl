@@ -147,10 +147,36 @@ shtl_entry_is_persistent() {
 	[[ ",$(shtl_get_entry_flags "$1")," == *,persist,* ]]
 }
 
+# A stored path that starts with "~" is under the home directory, so one
+# routes file works on machines with different homes (/Users/me, /home/me).
+# The "~" in these functions is the literal stored text, never expanded.
+# shellcheck disable=SC2088
+shtl_expand_path() {
+	local home="${HOME%/}"
+	case $1 in
+		"~") echo "${home:-/}" ;;
+		"~/"*) echo "${home}/${1#"~/"}" ;;
+		*) echo "$1" ;;
+	esac
+}
+
+# The reverse, for storing: a path in the home directory becomes ~ or ~/...
+# shellcheck disable=SC2088
+shtl_contract_path() {
+	local home="${HOME%/}"
+	if [[ -n $home && $1 == "$home" ]]; then
+		echo "~"
+	elif [[ -n $home && $1 == "$home"/* ]]; then
+		echo "~/${1#"$home"/}"
+	else
+		echo "$1"
+	fi
+}
+
 shtl_get_route() {
 	local route
 	route=$(shtl_get_route_entry "$1")
-	shtl_get_entry_path "$route"
+	shtl_expand_path "$(shtl_get_entry_path "$route")"
 }
 
 shtl_get_route_names(){
@@ -273,11 +299,12 @@ shtl_add_route(){
 		shtl_log "ERROR" "It appears this route already exists in your routes"
 		return 1
 	fi	
-	shtl_validate_path "$2" || return 1
-	local route
-	route="$(shtl_resolve_path "$2")" || return 1
+	local route providedPath
+	providedPath="$(shtl_expand_path "$2")"
+	shtl_validate_path "$providedPath" || return 1
+	route="$(shtl_resolve_path "$providedPath")" || return 1
 	shtl_check_route_dir "$route" "$3" "To add a route for a directory that will exist later, use --persist" || return 1
-	shtl_write_routes shtl_print_routes_with_entry "$(shtl_format_entry "$1" "$3" "$route")"
+	shtl_write_routes shtl_print_routes_with_entry "$(shtl_format_entry "$1" "$3" "$(shtl_contract_path "$route")")"
 }
 
 shtl_delete_route() {
@@ -293,7 +320,8 @@ shtl_delete_route() {
 # Points an existing route at a new path, keeping its flags
 shtl_update_route() {
 	local routeName="$1"
-	local providedPath="$2"
+	local providedPath
+	providedPath="$(shtl_expand_path "$2")"
 	local entry route persistent=""
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Could not update route \"${routeName}\". The route does not exist"
@@ -304,7 +332,7 @@ shtl_update_route() {
 	route="$(shtl_resolve_path "$providedPath")" || return 1
 	shtl_entry_is_persistent "$entry" && persistent="yes"
 	shtl_check_route_dir "$route" "$persistent" "To make this route persistent, run: shtl persist ${routeName}. Then run this update again" || return 1
-	shtl_write_routes shtl_print_routes_replacing "$routeName" "$(shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route")" || return 1
+	shtl_write_routes shtl_print_routes_replacing "$routeName" "$(shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$(shtl_contract_path "$route")")" || return 1
 	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
 }
 
@@ -338,7 +366,7 @@ shtl_clean_routes() {
 	while IFS='' read -r entry; do
 		shtl_entry_is_persistent "$entry" && continue
 		path="$(shtl_get_entry_path "$entry")"
-		[[ -d $path ]] && continue
+		[[ -d $(shtl_expand_path "$path") ]] && continue
 		names+=("$(shtl_get_entry_name "$entry")")
 		paths+=("$path")
 		selected+=(1)
@@ -424,7 +452,7 @@ shtl_toggle_persist() {
 	entry="$(shtl_get_route_entry "$routeName")"
 	flags="$(shtl_get_entry_flags "$entry")"
 	if shtl_entry_is_persistent "$entry"; then
-		shtl_check_route_dir "$(shtl_get_entry_path "$entry")" "" "Point it at an existing directory with: shtl update ${routeName} PATH, or remove it" || return 1
+		shtl_check_route_dir "$(shtl_expand_path "$(shtl_get_entry_path "$entry")")" "" "Point it at an existing directory with: shtl update ${routeName} PATH, or remove it" || return 1
 		# Drop "persist" from the comma-separated flags, keeping any others
 		flags=",${flags},"
 		flags="${flags//,persist,/,}"
@@ -524,8 +552,9 @@ shtl_doctor(){
 				problems+=("Line ${lineNumber}: \"${flag}\" is not a flag. The only flag is persist")
 			fi
 		done
-		if [[ $path != /* ]]; then
-			problems+=("Line ${lineNumber}: path \"${path}\" is not absolute. It must start with \"/\"")
+		# shellcheck disable=SC2088 # a literal stored "~", not to be expanded
+		if [[ $path != /* && $path != "~" && $path != "~/"* ]]; then
+			problems+=("Line ${lineNumber}: path \"${path}\" is not absolute. It must start with \"/\" or \"~/\"")
 		fi
 	done < "$ROUTES_FILE"
 	if [[ ${#problems[@]} -eq 0 ]]; then

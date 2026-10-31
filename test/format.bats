@@ -255,3 +255,80 @@ load test_helper
 	run shtl list
 	[ "${lines[0]}" = "a  $DIR_A" ]
 }
+
+# Home paths (#4)
+
+@test "add stores paths in the home directory as ~/" {
+	use_test_home
+	mkdir -p "$HOME/work"
+	shtl add work "$HOME/work"
+	shtl add home "$HOME"
+	shtl add other "$DIR_A"
+	[ "$(routes)" = "work[]:~/work"$'\n'"home[]:~"$'\n'"other[]:$DIR_A" ]
+}
+
+@test "a ~/ route goes to the path under each machine's home" {
+	mkdir -p "$(dirname "$ROUTES_FILE")" "$BATS_TEST_TMPDIR/mac/work" "$BATS_TEST_TMPDIR/linux/work"
+	printf '%s\n' "# shtl routes v1" "work[]:~/work" "home[]:~" > "$ROUTES_FILE"
+	run env HOME="$BATS_TEST_TMPDIR/mac" shtl path work
+	[ "$output" = "$BATS_TEST_TMPDIR/mac/work" ]
+	run env HOME="$BATS_TEST_TMPDIR/linux" shtl path work
+	[ "$output" = "$BATS_TEST_TMPDIR/linux/work" ]
+	run env HOME="$BATS_TEST_TMPDIR/linux" shtl path home
+	[ "$output" = "$BATS_TEST_TMPDIR/linux" ]
+}
+
+@test "the shell function goes to a ~/ route" {
+	use_test_home
+	mkdir -p "$HOME/work"
+	shtl add work "$HOME/work"
+	run bash -c 'eval "$(shtl init)" && shtl work && pwd'
+	[ "$output" = "$HOME/work" ]
+}
+
+@test "a directory that only starts like the home directory stays absolute" {
+	use_test_home
+	mkdir -p "$HOME" "$BATS_TEST_TMPDIR/homework"
+	shtl add hw "$BATS_TEST_TMPDIR/homework"
+	[ "$(routes)" = "hw[]:$BATS_TEST_TMPDIR/homework" ]
+}
+
+@test "add and update accept a quoted ~/ path" {
+	use_test_home
+	mkdir -p "$HOME/a" "$HOME/b"
+	# shellcheck disable=SC2088 # shtl gets the literal ~, as from a quoted argument
+	shtl add work '~/a'
+	[ "$(routes)" = "work[]:~/a" ]
+	# shellcheck disable=SC2088
+	shtl update work '~/b'
+	[ "$(routes)" = "work[]:~/b" ]
+}
+
+@test "list shows ~/ paths as stored" {
+	use_test_home
+	mkdir -p "$HOME/work"
+	shtl add work "$HOME/work"
+	run shtl list
+	[ "$output" = "work  ~/work" ]
+}
+
+@test "persist and clean check the expanded ~/ path" {
+	use_test_home
+	mkdir -p "$HOME/work"
+	shtl add work "$HOME/work" --persist
+	run shtl persist work
+	[ "$status" -eq 0 ]
+	[ "$(routes)" = "work[]:~/work" ]
+	run shtl clean
+	[[ $output == *"All routes point to existing directories"* ]] || false
+}
+
+@test "doctor accepts ~ and ~/ paths but not ~user" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" "a[]:~" "b[]:~/work" "c[]:~bob/work" > "$ROUTES_FILE"
+	run shtl doctor
+	[ "$status" -eq 1 ]
+	[[ $output != *"Line 2"* ]] || false
+	[[ $output != *"Line 3"* ]] || false
+	[[ $output == *"Line 4: path \"~bob/work\""* ]] || false
+}

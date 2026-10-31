@@ -151,13 +151,17 @@ work[]:/Users/me/work
 |---|---|
 | `NAME` | The name of the route. |
 | `FLAGS` | A list of flags, with a comma between each flag. The list can be empty. |
-| `PATH` | The absolute path of the directory. |
+| `PATH` | The absolute path of the directory. A path in your home directory starts with `~`. |
 
 At this time, `persist` is the only flag. A route that has the `persist` flag can point to a directory that is not on the computer at this time. Use it to prepare routes for a different computer. `shtl clean` does not remove a route that has the `persist` flag.
 
 The path is the last part of the line. Thus, the path can contain colons and all other characters.
 
 A line that starts with `#` is a comment. `shtl` does not change comments, blank lines, or the sequence of the routes. `shtl add` puts a new route at the end of the file. `shtl list` sorts the routes by name.
+
+### Home Directory
+
+If a route is in your home directory, `shtl` writes `~` for your home directory in the path. For example, `/Users/me/work` on macOS is `~/work` in the routes file. When `shtl` reads the route, it replaces `~` with the home directory of the computer. Thus, you can use the same routes file on macOS and on Linux.
 
 ### Route Names
 

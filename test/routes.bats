@@ -98,9 +98,7 @@ load test_helper
 
 @test "add rejects relative paths" {
 	cd "$DIR_A"
-	# A quoted "~/x" reaches shtl unexpanded, so it's relative too
-	# shellcheck disable=SC2088
-	for path in . .. ./x x/y '~/x'; do
+	for path in . .. ./x x/y; do
 		run shtl add rel "$path"
 		[ "$status" -eq 1 ]
 		[[ $output == *"is not an absolute path"* ]]
