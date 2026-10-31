@@ -11,6 +11,7 @@ name = "shtl"
 path = "src/main.rs"
 
 [dependencies]
+crossterm = { version = "0.29.0", default-features = false, features = ["events"] }
 gethostname = "1.1.0"
 tempfile = "3.27.0"
 toml_edit = "0.25.17"

@@ -54,6 +54,7 @@ pub fn run(args: &[String]) -> ExitCode {
         "update" => update(rest),
         "remove" | "rm" => remove(rest),
         "persist" => persist(rest),
+        "clean" => clean(),
         "init" => {
             print!("{}", init_script());
             Ok(())
@@ -345,6 +346,57 @@ fn persist(args: &[String]) -> Outcome {
         ));
     }
     Ok(())
+}
+
+/// `clean`: a checklist of this host's routes to directories that aren't
+/// there, then removes the selected ones for this host only. Persistent
+/// routes are skipped, and so are routes with no hosts: a directory that is
+/// missing on one machine says nothing about the others.
+fn clean() -> Outcome {
+    use std::io::IsTerminal;
+
+    let mut store = open_store()?;
+    let mine = sorted_for_host(&store.routes);
+    if mine.is_empty() {
+        log::info("No routes to clean. Add one with: shtl add NAME [PATH]");
+        return Ok(());
+    }
+    let home = home();
+    let gone: Vec<Route> = mine
+        .into_iter()
+        .filter(|r| r.hosts.is_some() && !r.persist)
+        .filter(|r| !std::path::Path::new(&paths::expand(&r.path, &home)).is_dir())
+        .cloned()
+        .collect();
+    if gone.is_empty() {
+        log::info("All routes point to existing directories");
+        return Ok(());
+    }
+    if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
+        return Err(fail("Clean needs an interactive terminal"));
+    }
+    let rows: Vec<(String, String)> = gone
+        .iter()
+        .map(|r| (r.name.clone(), r.path.clone()))
+        .collect();
+    let done = crate::clean::run(&rows).map_err(|e| fail(&format!("Clean stopped: {e}")))?;
+    match done {
+        crate::clean::Done::Cancel => {
+            log::info("Clean cancelled. No routes were removed");
+            Ok(())
+        }
+        crate::clean::Done::Interrupt => std::process::exit(130),
+        crate::clean::Done::Remove(picked) => {
+            let host = host::this_host();
+            let edits: Vec<change::Edit> = picked
+                .iter()
+                .map(|i| change::remove(&gone[*i], &host))
+                .collect();
+            save_edits(&mut store, &edits, &host)?;
+            log::info(&format!("Removed {} route(s)", picked.len()));
+            Ok(())
+        }
+    }
 }
 
 /// Prints only the path, for the shell function and for scripts

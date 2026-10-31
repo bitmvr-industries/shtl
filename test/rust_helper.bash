@@ -20,6 +20,15 @@ setup() {
 	mkdir -p "$DIR_A" "$DIR_B"
 }
 
+# This machine's host name, the way shtl reads it
+this_host() {
+	if [[ $(uname) == Darwin ]]; then
+		scutil --get LocalHostName
+	else
+		hostname | cut -d. -f1
+	fi
+}
+
 # Adds a route to the routes file: add_route NAME PATH [HOST]
 add_route() {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
