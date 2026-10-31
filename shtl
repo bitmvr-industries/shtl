@@ -48,9 +48,33 @@ shtl_init(){
 	exit 1
 }
 
-# Rewrites the routes file: header first, then routes sorted by name
+# Replaces the routes file with the output of the given command. The output
+# goes to a unique temp file next to the real file, then moves over it, so:
+# a symlinked routes file (e.g. from a dotfiles repo) stays a symlink, two
+# shtl commands never share a temp file, and a failed write changes nothing.
+# mktemp makes the file 0600, so cp -p copies the real file's mode onto it
+# first. >| then writes even when noclobber is on.
+shtl_write_routes() {
+	local target="$ROUTES_FILE" tmp
+	if [[ -L $target ]]; then
+		target="$(realpath "$target")" || return 1
+	fi
+	tmp="$(mktemp "${target}.XXXXXX")" || return 1
+	if cp -p "$target" "$tmp" && "$@" >| "$tmp" && mv -f "$tmp" "$target"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	return 1
+}
+
+# Header first, then routes sorted by name
+shtl_print_sorted_routes() {
+	echo "$ROUTES_HEADER"
+	shtl_get_entries | sort --ignore-case -t '[' -k1,1
+}
+
 shtl_refresh_routes() {
-	{ echo "$ROUTES_HEADER"; shtl_get_entries | sort --ignore-case -t '[' -k1,1; } > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+	shtl_write_routes shtl_print_sorted_routes
 }
 
 # Prints every route entry, skipping the header, comments and blank lines
@@ -86,8 +110,12 @@ shtl_get_route_entry() {
 	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] "[") == 1' "$ROUTES_FILE"
 }
 
+shtl_print_routes_without() {
+	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] "[") != 1' "$ROUTES_FILE"
+}
+
 shtl_remove_route_entry() {
-	SHTL_ROUTE_NAME="$1" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] "[") != 1' "$ROUTES_FILE" > "$ROUTES_FILE.tmp" && mv "$ROUTES_FILE.tmp" "$ROUTES_FILE"
+	shtl_write_routes shtl_print_routes_without "$1"
 }
 
 # Entry helpers. An entry is NAME[FLAGS]:PATH (see ROUTES_HEADER).
@@ -270,8 +298,8 @@ shtl_update_route() {
 	route="$(shtl_resolve_path "$providedPath")" || return 1
 	shtl_entry_is_persistent "$entry" && persistent="yes"
 	shtl_check_route_dir "$route" "$persistent" "To make this route persistent, run: shtl persist ${routeName}. Then run this update again" || return 1
-	shtl_remove_route_entry "$routeName"
-	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes
+	shtl_remove_route_entry "$routeName" || return 1
+	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes || return 1
 	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
 }
 
@@ -401,8 +429,8 @@ shtl_toggle_persist() {
 		flags="${flags:+${flags},}persist"
 	fi
 	newEntry="$(shtl_format_entry "$routeName" "$flags" "$(shtl_get_entry_path "$entry")")"
-	shtl_remove_route_entry "$routeName"
-	echo "$newEntry" >> "$ROUTES_FILE" && shtl_refresh_routes
+	shtl_remove_route_entry "$routeName" || return 1
+	echo "$newEntry" >> "$ROUTES_FILE" && shtl_refresh_routes || return 1
 	if shtl_entry_is_persistent "$newEntry"; then
 		shtl_log "INFO" "Route \"${routeName}\" is now persistent. Clean will skip it"
 	else

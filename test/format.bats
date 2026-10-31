@@ -159,3 +159,72 @@ load test_helper
 	[ "$status" -eq 1 ]
 	[[ $output == *"run: shtl doctor"* ]]
 }
+
+# Writing the routes file (#1, #3)
+
+@test "a symlinked routes file stays a symlink after every command" {
+	mkdir -p "$(dirname "$ROUTES_FILE")" "$BATS_TEST_TMPDIR/dotfiles"
+	local real="$BATS_TEST_TMPDIR/dotfiles/routes"
+	printf '%s\n' "# shtl routes v1" > "$real"
+	ln -s "$real" "$ROUTES_FILE"
+	shtl add work "$DIR_A"
+	shtl add home "$DIR_B"
+	shtl update work "$DIR_B"
+	shtl persist work
+	shtl remove home
+	[ -L "$ROUTES_FILE" ]
+	[ "$(cat "$real")" = "# shtl routes v1"$'\n'"work[persist]:$DIR_B" ]
+}
+
+@test "a relative symlink to the routes file is followed" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" > "$(dirname "$ROUTES_FILE")/real-routes"
+	ln -s real-routes "$ROUTES_FILE"
+	shtl add work "$DIR_A"
+	[ -L "$ROUTES_FILE" ]
+	[ "$(routes)" = "work[]:$DIR_A" ]
+}
+
+@test "commands leave no temp files behind" {
+	shtl add work "$DIR_A"
+	shtl update work "$DIR_B"
+	shtl persist work
+	shtl remove work
+	[ "$(ls -A "$(dirname "$ROUTES_FILE")")" = "routes" ]
+}
+
+@test "a leftover routes.tmp is not used or overwritten" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" > "$ROUTES_FILE"
+	printf '%s\n' "someone else's write" > "$ROUTES_FILE.tmp"
+	shtl add work "$DIR_A"
+	[ "$(routes)" = "work[]:$DIR_A" ]
+	[ "$(cat "$ROUTES_FILE.tmp")" = "someone else's write" ]
+}
+
+@test "writes work with noclobber on" {
+	run env SHELLOPTS=noclobber shtl add work "$DIR_A"
+	[ "$status" -eq 0 ]
+	run env SHELLOPTS=noclobber shtl remove work
+	[ "$status" -eq 0 ]
+	[ -z "$(routes)" ]
+}
+
+@test "a failed write leaves the routes file as it was" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" "work[]:$DIR_A" > "$ROUTES_FILE"
+	chmod a-w "$(dirname "$ROUTES_FILE")"
+	run shtl remove work
+	chmod u+w "$(dirname "$ROUTES_FILE")"
+	[ "$status" -eq 1 ]
+	[ "$(routes)" = "work[]:$DIR_A" ]
+	[ "$(ls -A "$(dirname "$ROUTES_FILE")")" = "routes" ]
+}
+
+@test "rewrites keep the routes file's permissions" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" > "$ROUTES_FILE"
+	chmod 644 "$ROUTES_FILE"
+	shtl add work "$DIR_A"
+	[ -n "$(find "$ROUTES_FILE" -perm 644)" ]
+}
