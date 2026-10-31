@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 
-# The Rust shtl's interactive clean screen, driven with expect
+# shtl's interactive clean screen, driven with expect
 
-load rust_helper
+load test_helper
 
 # Runs shtl clean in a terminal, waits for the list, types $1 (expect
 # escapes, e.g. "\r" for Enter), then prints shtl's output and exit status

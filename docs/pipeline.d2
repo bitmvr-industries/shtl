@@ -23,31 +23,33 @@ shell: Your shell (bash / zsh) {
   fn -> kind
 }
 
-script: shtl script {
-  needs: "Command needs\nthe routes file?" {class: decision}
-  init: "shtl_init\n- create the routes file if missing\n- check the first line is the v1 header" {class: step}
+script: shtl binary (Rust) {
+  needs: "Command needs\nthe routes?" {class: decision}
+  load: "Read routes.toml\n- no file: no routes\n- version must be 2" {class: step}
   badfile: "Log ERROR: not a routes file,\nrun shtl doctor\nexit 1" {class: error}
-  dispatch: Dispatch subcommand {class: decision}
+  host: "Routes for this host\n(LocalHostName on macOS,\nhostname on Linux)\na host route wins over\na route without hosts" {class: step}
+  dispatch: Dispatch command {class: decision}
 
   path: "path NAME [SUBDIR]" {class: step}
-  exists: "Route exists?" {class: decision}
+  exists: "Route exists\non this host?" {class: decision}
   dirok: "Route directory exists?\nSUBDIR relative and exists?" {class: decision}
   print: "Print path to stdout\n(~/ expanded)" {class: step}
   suggest: "Log ERROR\nsuggest similar routes\nexit 1" {class: error}
   fail: "Log ERROR\nexit 1" {class: error}
 
   write: "add / update / remove\npersist / clean" {class: step}
-  edit: "Change only that route's line\n(order, comments and\nblank lines stay)" {class: step}
-  swap: "Write a temp file next to\nthe routes file, then mv it over\n(a symlink stays a symlink)" {class: step}
+  plan: "Plan the edits for this host only\n- add or remove this host in hosts\n- split a shared route\n- join a route with the same\n  name, path and persist" {class: step}
+  swap: "Edit with toml_edit (comments,\nblank lines and order stay), write a\ntemp file next to routes.toml, rename\nit over (a symlink stays a symlink)" {class: step}
   read: "list / ls (sorted by name)\nlist --names" {class: step}
   doctor: "doctor\nreport problems\nwith line numbers" {class: step}
   rc: "setup / unsetup\nadd or remove the\neval line" {class: step}
   info: "help / init / version" {class: step}
 
-  needs -> init: "yes"
+  needs -> load: "yes"
   needs -> dispatch: "no:\nhelp, doctor, setup,\nunsetup, init, version"
-  init -> dispatch: header OK
-  init -> badfile: bad header
+  load -> host: OK
+  load -> badfile: bad file
+  host -> dispatch
 
   dispatch -> path: path
   dispatch -> write: change routes
@@ -60,11 +62,11 @@ script: shtl script {
   exists -> suggest: no
   dirok -> print: yes
   dirok -> fail: no
-  write -> edit
-  edit -> swap
+  write -> plan
+  plan -> swap
 }
 
-routes: "routes file\n~/.config/shtl/routes\n# shtl routes v1\none NAME[FLAGS]:PATH per line\n(paths in home stored as ~/)" {class: data}
+routes: "routes.toml\n~/.config/shtl/routes.toml\nversion = 2\n[[route]] name, path,\npersist, hosts" {class: data}
 rcfile: "shell rc file\n~/.zshrc, ~/.bashrc\nor bash login file" {class: data}
 
 user -> shell.fn: "shtl ROUTE_NAME [SUBDIR]"
@@ -75,9 +77,7 @@ user <- script.suggest: error message {style.stroke-dash: 3}
 user <- script.fail: error message {style.stroke-dash: 3}
 user <- script.badfile: error message {style.stroke-dash: 3}
 
-script.init -> routes: create / check
-script.exists -> routes: look up NAME
+script.load -> routes: read
 script.swap -> routes: write
-script.read -> routes
 script.doctor -> routes: check
 script.rc -> rcfile: edit

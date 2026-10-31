@@ -1,26 +1,23 @@
 #!/usr/bin/env bats
-# Each test sets its own SHELL, and rc file text holds literal $ expressions
-# shellcheck disable=SC2030,SC2031,SC2016
+# Each test sets its own SHELL, and rc file text and messages hold literal $ and ~
+# shellcheck disable=SC2030,SC2031,SC2016,SC2088
+
+# shtl's setup and unsetup. Which rc file each shell and OS uses is
+# unit tested in src/setup.rs; these tests run the prompts and edit files.
 
 load test_helper
-
-# setup and unsetup: they find the rc file for the user's shell and OS. Each
-# test uses a throwaway HOME, sets SHELL, and fakes uname to pick the OS.
 
 MARKER="# shtl: https://github.com/bitmvr-industries/shtl"
 INIT_LINE='if command -v shtl >/dev/null; then eval "$(shtl init)"; fi'
 
-# Makes uname print $1 (Darwin or Linux) for the rest of the test
-fake_os() {
-	mkdir -p "$BATS_TEST_TMPDIR/fakebin"
-	printf '#!/bin/sh\necho %s\n' "$1" > "$BATS_TEST_TMPDIR/fakebin/uname"
-	chmod +x "$BATS_TEST_TMPDIR/fakebin/uname"
-	PATH="$BATS_TEST_TMPDIR/fakebin:$PATH"
+use_zsh() {
+	use_test_home
+	export SHELL=/bin/zsh
+	unset ZDOTDIR
 }
 
-use_bash_on() {
+use_bash() {
 	use_test_home
-	fake_os "$1"
 	export SHELL=/bin/bash
 }
 
@@ -45,152 +42,98 @@ answer() {
 # Which file
 
 @test "zsh uses ~/.zshrc" {
-	use_test_home
-	export SHELL=/bin/zsh
+	use_zsh
 	setup_target
 	[[ $output == *"lines in ~/.zshrc "* ]] || false
 }
 
 @test "zsh uses \$ZDOTDIR/.zshrc when ZDOTDIR is set" {
-	use_test_home
-	export SHELL=/bin/zsh ZDOTDIR="$HOME/.config/zsh"
+	use_zsh
+	export ZDOTDIR="$HOME/.config/zsh"
 	setup_target
 	[[ $output == *"lines in ~/.config/zsh/.zshrc "* ]] || false
 }
 
-@test "bash on Linux uses ~/.bashrc" {
-	use_bash_on Linux
-	echo 'export A=1' > "$HOME/.bash_profile"
+@test "bash uses the file for this OS" {
+	use_bash
 	setup_target
-	[[ $output == *"lines in ~/.bashrc "* ]] || false
-}
-
-@test "bash on macOS uses ~/.bash_profile when there is no login file" {
-	use_bash_on Darwin
-	setup_target
-	[[ $output == *"lines in ~/.bash_profile "* ]] || false
-}
-
-@test "bash on macOS uses ~/.profile when it is the only login file" {
-	use_bash_on Darwin
-	echo 'export A=1' > "$HOME/.profile"
-	setup_target
-	[[ $output == *"lines in ~/.profile "* ]] || false
-	[ ! -e "$HOME/.bash_profile" ]
-}
-
-@test "bash on macOS uses the login file that bash reads first" {
-	use_bash_on Darwin
-	echo 'export A=1' > "$HOME/.bash_login"
-	echo 'export B=1' > "$HOME/.profile"
-	setup_target
-	[[ $output == *"lines in ~/.bash_login "* ]] || false
-}
-
-@test "bash on macOS uses ~/.bashrc when the login file sources it" {
-	use_bash_on Darwin
-	local line lines=(
-		'source ~/.bashrc'
-		'. ~/.bashrc'
-		'[ -f ~/.bashrc ] && . ~/.bashrc'
-		'[[ -r "$HOME/.bashrc" ]] && source "$HOME/.bashrc"'
-		'if [ -f "${HOME}/.bashrc" ]; then . "${HOME}/.bashrc"; fi'
-		'    source $HOME/.bashrc'
-	)
-	for line in "${lines[@]}"; do
-		printf 'export A=1\n%s\n' "$line" > "$HOME/.bash_profile"
-		setup_target
-		[[ $output == *"lines in ~/.bashrc "* ]] || { echo "not detected: $line"; false; }
-		[[ $output == *"~/.bash_profile sources ~/.bashrc"* ]] || false
-	done
-}
-
-@test "bash on macOS ignores a commented-out source of ~/.bashrc" {
-	use_bash_on Darwin
-	printf '# source ~/.bashrc\n  # . ~/.bashrc\n' > "$HOME/.bash_profile"
-	setup_target
-	[[ $output == *"lines in ~/.bash_profile "* ]] || false
-}
-
-@test "bash on macOS checks ~/.profile for a source of ~/.bashrc" {
-	use_bash_on Darwin
-	# The Ubuntu default ~/.profile
-	printf 'if [ -n "$BASH_VERSION" ]; then\n    if [ -f "$HOME/.bashrc" ]; then\n\t. "$HOME/.bashrc"\n    fi\nfi\n' > "$HOME/.profile"
-	setup_target
-	[[ $output == *"lines in ~/.bashrc "* ]] || false
+	if [[ $(uname) == Darwin ]]; then
+		[[ $output == *"lines in ~/.bash_profile "* ]] || false
+	else
+		[[ $output == *"lines in ~/.bashrc "* ]] || false
+	fi
 }
 
 @test "another shell gets the command to use without the shell function" {
 	use_test_home
 	export SHELL=/usr/local/bin/fish
 	setup_target
-	[[ $output == *"supports bash and zsh"* ]] || false
-	[[ $output == *'cd "$(shtl path ROUTE_NAME)"'* ]] || false
+	[ "$output" = 'shtl'"'"'s shell function supports bash and zsh. Without it, use: cd "$(shtl path ROUTE_NAME)"' ]
 }
 
 # Adding the lines
 
-@test "setup without a terminal edits nothing" {
-	use_bash_on Darwin
-	echo 'export A=1' > "$HOME/.bash_profile"
+@test "setup without a terminal shows the lines and edits nothing" {
+	use_zsh
+	echo 'export A=1' > "$HOME/.zshrc"
 	setup_target
-	[[ $output == *"$INIT_LINE"* ]] || false
-	[ "$(cat "$HOME/.bash_profile")" = 'export A=1' ]
+	[ "${lines[0]}" = "shtl needs these lines in ~/.zshrc to change directories and tab-complete routes." ]
+	[[ $output == *"    $MARKER"* && $output == *"    $INIT_LINE"* ]] || false
+	[[ $output == *"Skipped. To set it up yourself, add those lines to the end of ~/.zshrc"* ]] || false
+	[[ $output == *"(after compinit, so tab completion works), then open a new terminal."* ]] || false
+	[ "$(cat "$HOME/.zshrc")" = 'export A=1' ]
 }
 
 @test "setup appends the lines after a blank line when you answer y" {
-	use_bash_on Darwin
-	printf 'export A=1\nsource ~/.bashrc\n' > "$HOME/.bash_profile"
-	echo 'export B=1' > "$HOME/.bashrc"
+	use_zsh
+	echo 'export A=1' > "$HOME/.zshrc"
 	answer setup y
-	[ "$(cat "$HOME/.bashrc")" = "$(printf 'export B=1\n\n%s\n%s' "$MARKER" "$INIT_LINE")" ]
-	[ "$(cat "$HOME/.bash_profile")" = "$(printf 'export A=1\nsource ~/.bashrc')" ]
+	[[ $output == *"Added. Open a new terminal, or run: source ~/.zshrc"* ]] || false
+	[ "$(cat "$HOME/.zshrc")" = "$(printf 'export A=1\n\n%s\n%s' "$MARKER" "$INIT_LINE")" ]
 }
 
 @test "setup makes the rc file when it doesn't exist" {
-	use_test_home
-	export SHELL=/bin/zsh
-	answer setup y
+	use_zsh
+	answer setup Y
 	[ "$(cat "$HOME/.zshrc")" = "$(printf '%s\n%s' "$MARKER" "$INIT_LINE")" ]
 }
 
 @test "setup edits nothing when you answer n" {
-	use_bash_on Linux
-	echo 'export B=1' > "$HOME/.bashrc"
+	use_zsh
+	echo 'export B=1' > "$HOME/.zshrc"
 	answer setup n
 	[[ $output == *"Skipped"* ]] || false
-	[ "$(cat "$HOME/.bashrc")" = 'export B=1' ]
-}
-
-@test "setup finds the lines in the login file that sources ~/.bashrc" {
-	use_bash_on Darwin
-	printf 'source ~/.bashrc\n%s\n' "$INIT_LINE" > "$HOME/.bash_profile"
-	touch "$HOME/.bashrc"
-	setup_target
-	[[ $output == *"already set up in ~/.bash_profile"* ]] || false
-	[ ! -s "$HOME/.bashrc" ]
+	[ "$(cat "$HOME/.zshrc")" = 'export B=1' ]
 }
 
 @test "setup doesn't add the lines twice" {
-	use_bash_on Linux
-	printf '%s\n%s\n' "$MARKER" "$INIT_LINE" > "$HOME/.bashrc"
+	use_zsh
+	printf 'eval "$(shtl init)"\n' > "$HOME/.zshrc"
 	setup_target
-	[[ $output == *"already set up in ~/.bashrc"* ]] || false
+	[ "$output" = "Shell integration already set up in ~/.zshrc" ]
+}
+
+@test "setup notes a symlinked rc file" {
+	use_zsh
+	mkdir "$HOME/dotfiles"
+	touch "$HOME/dotfiles/zshrc"
+	ln -s "$HOME/dotfiles/zshrc" "$HOME/.zshrc"
+	setup_target
+	[[ $output == *"Note: ~/.zshrc is a symlink to $HOME/dotfiles/zshrc. The change will be made in that file."* ]] || false
 }
 
 # Removing the lines
 
 @test "unsetup removes the lines and the blank line before them" {
-	use_bash_on Darwin
-	printf 'export A=1\nsource ~/.bashrc\n' > "$HOME/.bash_profile"
+	use_bash
 	printf 'export B=1\n\n%s\n%s\nexport C=1\n' "$MARKER" "$INIT_LINE" > "$HOME/.bashrc"
 	answer unsetup y
+	[[ $output == *"~/.bashrc has shtl's shell integration lines."* && $output == *"Removed."* ]] || false
 	[ "$(cat "$HOME/.bashrc")" = "$(printf 'export B=1\nexport C=1')" ]
 }
 
-@test "unsetup finds the lines in a file setup no longer picks" {
-	use_bash_on Darwin
-	# Added to ~/.bash_profile before it sourced ~/.bashrc
+@test "unsetup finds the lines in every bash rc file" {
+	use_bash
 	printf 'source ~/.bashrc\n\n%s\n%s\n' "$MARKER" "$INIT_LINE" > "$HOME/.bash_profile"
 	touch "$HOME/.bashrc"
 	answer unsetup y
@@ -198,8 +141,7 @@ answer() {
 }
 
 @test "unsetup keeps a symlinked rc file a symlink" {
-	use_test_home
-	export SHELL=/bin/zsh
+	use_zsh
 	mkdir "$HOME/dotfiles"
 	printf 'export A=1\n\n%s\n%s\n' "$MARKER" "$INIT_LINE" > "$HOME/dotfiles/zshrc"
 	ln -s "$HOME/dotfiles/zshrc" "$HOME/.zshrc"
@@ -209,35 +151,36 @@ answer() {
 }
 
 @test "unsetup without a terminal edits nothing" {
-	use_bash_on Linux
+	use_bash
 	printf '%s\n%s\n' "$MARKER" "$INIT_LINE" > "$HOME/.bashrc"
 	run shtl unsetup < /dev/null
 	[ "$status" -eq 0 ]
+	[[ $output == *"Kept. The line is guarded, so it does nothing while shtl isn't installed."* ]] || false
 	[ "$(cat "$HOME/.bashrc")" = "$(printf '%s\n%s' "$MARKER" "$INIT_LINE")" ]
 }
 
 @test "unsetup points out an init line it didn't add" {
-	use_bash_on Linux
+	use_bash
 	echo 'eval "$(shtl init)"' > "$HOME/.bashrc"
 	run shtl unsetup < /dev/null
-	[[ $output == *"~/.bashrc runs 'shtl init'"* ]] || false
+	[ "$output" = "~/.bashrc runs 'shtl init'. setup didn't add that line, so remove it yourself." ]
 }
 
-# Pointers to setup
-
-@test "shtl ROUTE without the shell function points to setup" {
-	shtl add a "$DIR_A"
-	run --separate-stderr shtl a
-	[[ $stderr == *"run: shtl setup"* ]] || false
+@test "unsetup with no lines says so" {
+	use_zsh
+	run shtl unsetup < /dev/null
+	[ "$output" = "No shtl lines in your rc files" ]
 }
 
 @test "setup and unsetup work with a bad routes file and don't make one" {
-	use_bash_on Linux
+	use_zsh
 	run shtl setup < /dev/null
 	[ "$status" -eq 0 ]
 	[ ! -e "$ROUTES_FILE" ]
 	mkdir -p "$(dirname "$ROUTES_FILE")"
 	echo "not a routes file" > "$ROUTES_FILE"
+	run shtl setup < /dev/null
+	[ "$status" -eq 0 ]
 	run shtl unsetup < /dev/null
 	[ "$status" -eq 0 ]
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 
-# The Rust shtl's shell function and tab completion, from shtl init
+# shtl's shell function and tab completion, from shtl init
 
-load rust_helper
+load test_helper
 
 # Each shell parses the whole init output, including the other shell's branch
 @test "the init output is valid bash and zsh" {

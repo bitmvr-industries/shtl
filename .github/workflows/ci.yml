@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       # Pinned to match local development; Ubuntu's package lags behind and
       # warns differently (e.g. it doesn't know bats sets $stderr)
       - name: Install shellcheck
@@ -22,20 +25,12 @@ jobs:
       - run: make lint
 
   # Linux only. macOS is covered by running `make test` locally, which also
-  # runs on the stock macOS bash 3.2
+  # runs the bats tests on the stock macOS bash 3.2
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
       - name: Install bats, zsh and expect
         run: sudo apt-get update && sudo apt-get install -y bats zsh expect
       - run: make test
-
-  rust:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - run: make rust
