@@ -44,10 +44,6 @@ shtl_init(){
 	if [[ $firstLine == "$ROUTES_HEADER" ]]; then
 		return 0
 	fi
-	if [[ $firstLine == "# shtl routes "* ]]; then
-		shtl_log "ERROR" "${ROUTES_FILE} was written by a newer version of shtl (${firstLine#\# shtl routes }). Please upgrade shtl"
-		exit 1
-	fi
 	shtl_log "ERROR" "${ROUTES_FILE} is not a shtl routes file. Its first line must be: ${ROUTES_HEADER}"
 	exit 1
 }

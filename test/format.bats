@@ -56,13 +56,13 @@ load test_helper
 	[ "$output" = "work" ]
 }
 
-@test "a routes file from a newer shtl is left alone" {
+@test "a routes file with a different header is left alone" {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
-	printf '%s\n' "# shtl routes v2" "something new" > "$ROUTES_FILE"
+	printf '%s\n' "# shtl routes" "work[]:/tmp" > "$ROUTES_FILE"
 	run shtl list
 	[ "$status" -eq 1 ]
-	[[ $output == *"newer version of shtl (v2)"* ]]
-	[ "$(cat "$ROUTES_FILE")" = "# shtl routes v2"$'\n'"something new" ]
+	[[ $output == *"is not a shtl routes file"* ]]
+	[ "$(cat "$ROUTES_FILE")" = "# shtl routes"$'\n'"work[]:/tmp" ]
 }
 
 @test "a routes file without the header is left alone" {
