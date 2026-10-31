@@ -2,10 +2,14 @@
 
 source lib/shtl_functions.sh
 
-shtl_init
-
 subcommand="$1"
 shift
+
+# These don't read the routes file, so a bad one can't stop them
+case $subcommand in
+	""|help|init|version) ;;
+	*) shtl_init ;;
+esac
 
 case $subcommand in
 	""|help)

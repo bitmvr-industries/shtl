@@ -65,6 +65,18 @@ load test_helper
 	[ "$(cat "$ROUTES_FILE")" = "# shtl routes"$'\n'"work[]:/tmp" ]
 }
 
+@test "help, version and init work with a bad routes file" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "work:/tmp" > "$ROUTES_FILE"
+	run shtl help
+	[ "$status" -eq 0 ]
+	run shtl version
+	[ "$status" -eq 0 ]
+	run shtl init
+	[ "$status" -eq 0 ]
+	[ "$(cat "$ROUTES_FILE")" = "work:/tmp" ]
+}
+
 @test "a routes file without the header is left alone" {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
 	printf '%s\n' "work:/tmp" > "$ROUTES_FILE"
