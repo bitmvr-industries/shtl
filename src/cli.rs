@@ -2,7 +2,7 @@
 
 use std::process::ExitCode;
 
-use crate::commands::is_command;
+use crate::commands::{COMMANDS, is_command};
 use crate::routes::{self, Route};
 use crate::{host, log, paths};
 
@@ -49,12 +49,24 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         "list" | "ls" => list(rest),
         "path" => path(rest),
+        "init" => {
+            print!("{}", init_script());
+            Ok(())
+        }
         other => go(other, rest),
     };
     match outcome {
         Ok(()) => ExitCode::SUCCESS,
         Err(Failed) => ExitCode::FAILURE,
     }
+}
+
+/// The shell function and tab completion for bash and zsh, for
+/// `eval "$(shtl init)"`. It calls only `shtl path` and `shtl list --names`.
+fn init_script() -> String {
+    include_str!("init.sh.in")
+        .replace("__SHTL_COMMAND_PATTERN__", &COMMANDS.join("|"))
+        .replace("__SHTL_COMMANDS__", &COMMANDS.join(" "))
 }
 
 fn home() -> String {

@@ -8,6 +8,9 @@
 set -eu
 
 repoDir="$(git rev-parse --show-toplevel)"
+# Cargo builds in the repo's own target dir, so a push doesn't build the
+# Rust crate and its dependencies from nothing
+export CARGO_TARGET_DIR="$repoDir/target"
 checkDir=""
 logFile=""
 

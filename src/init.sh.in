@@ -1,0 +1,76 @@
+shtl() {
+	case "$1" in
+		""|-*|__SHTL_COMMAND_PATTERN__) command shtl "$@" ;;
+		*)
+			local dest
+			dest="$(command shtl path "$@")" && cd -- "$dest"
+			;;
+	esac
+}
+
+if [ -n "$ZSH_VERSION" ]; then
+	_shtl() {
+		local -a routes subcommands
+		local base
+		routes=(${(f)"$(command shtl list --names)"})
+		subcommands=(__SHTL_COMMANDS__)
+		if (( CURRENT == 2 )); then
+			compadd -a subcommands
+			compadd -a routes
+		elif (( CURRENT == 3 )); then
+			case "${words[2]}" in
+				remove|rm|update|persist|path) compadd -a routes ;;
+				*)
+					# A route: complete folders under its path
+					if (( ! ${subcommands[(Ie)${words[2]}]} )); then
+						base="$(command shtl path "${words[2]}" 2>/dev/null)" && _files -/ -W "$base"
+					fi
+					;;
+			esac
+		elif (( CURRENT == 4 )) && [[ "${words[2]}" == add || "${words[2]}" == update ]]; then
+			_files -/
+		elif (( CURRENT == 4 )) && [[ "${words[2]}" == path ]]; then
+			base="$(command shtl path "${words[3]}" 2>/dev/null)" && _files -/ -W "$base"
+		fi
+	}
+	if (( $+functions[compdef] )); then
+		compdef _shtl shtl
+	fi
+elif [ -n "$BASH_VERSION" ]; then
+	# Folders under route $1 that start with $2, each ending in "/" so Tab can
+	# go a level deeper. bash 3.2 has no compopt, so it adds a space after each.
+	_shtl_subdirs() {
+		local base dir IFS=$'\n'
+		base="$(command shtl path "$1" 2>/dev/null)" || return
+		COMPREPLY=()
+		for dir in $(cd -- "$base" && compgen -d -- "$2"); do
+			COMPREPLY+=("$dir/")
+		done
+		compopt -o nospace 2>/dev/null
+	}
+	_shtl() {
+		local cur="${COMP_WORDS[COMP_CWORD]}"
+		local words=""
+		if [ "$COMP_CWORD" -eq 1 ]; then
+			words="__SHTL_COMMANDS__ $(command shtl list --names)"
+		elif [ "$COMP_CWORD" -eq 2 ]; then
+			case "${COMP_WORDS[1]}" in
+				remove|rm|update|persist|path) words="$(command shtl list --names)" ;;
+				*)
+					case " __SHTL_COMMANDS__ " in
+						*" ${COMP_WORDS[1]} "*) ;;
+						*) _shtl_subdirs "${COMP_WORDS[1]}" "$cur"; return ;;
+					esac
+					;;
+			esac
+		elif [ "$COMP_CWORD" -eq 3 ] && [ "${COMP_WORDS[1]}" = path ]; then
+			_shtl_subdirs "${COMP_WORDS[2]}" "$cur"
+			return
+		elif [ "$COMP_CWORD" -eq 3 ] && { [ "${COMP_WORDS[1]}" = add ] || [ "${COMP_WORDS[1]}" = update ]; }; then
+			COMPREPLY=($(compgen -d -- "$cur"))
+			return
+		fi
+		COMPREPLY=($(compgen -W "$words" -- "$cur"))
+	}
+	complete -F _shtl shtl
+fi

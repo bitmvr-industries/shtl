@@ -60,6 +60,8 @@ lint:
 
 test: build
 	@command -v bats > /dev/null || { echo "$(TIMESTAMP) - Test: bats not found. Install it with: brew install bats-core"; exit 1; }
+	@# test/shell.bats runs the Rust debug build
+	@cargo build --quiet
 	@bats test
 
 # The Rust port (2.0, issue #20): format check, lint, and unit + integration tests
