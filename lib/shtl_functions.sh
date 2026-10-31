@@ -100,7 +100,7 @@ shtl_usage() {
 	echo "                                    --persist allows a directory that doesn't exist yet, and clean skips the route"
 	echo "    update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory"
 	echo "    remove | rm NAME                Remove a route"
-	echo "    list | ls                       List routes"
+	echo "    list | ls                       List routes. * marks the route you are in"
 	echo "    clean                           Interactively remove routes whose directories no longer exist"
 	echo "    persist NAME                    Toggle whether clean skips a route"
 	echo "    path NAME                       Print a route's path (e.g. cp file \"\$(shtl path work)\")"
@@ -234,18 +234,28 @@ shtl_has_routes() {
 	[[ -n $(shtl_get_entries) ]]
 }
 
-# Prints NAME  PATH columns, marking persistent routes
+# True when directory $2 is $1 or inside it
+shtl_path_contains() {
+	[[ $2 == "$1" || $1 == / || $2 == "$1"/* ]]
+}
+
+# Prints NAME  PATH columns, marking persistent routes. When the current
+# directory is in a route, a "* " column marks the closest one (the longest
+# path that contains it; several routes if they share that directory).
 shtl_list_routes() {
-	local entry name i width=0
-	local names=() paths=() marks=()
+	local entry name path i cwd pointer width=0 best=-1
+	local names=() paths=() marks=() expanded=()
 	if ! shtl_has_routes; then
 		shtl_log "INFO" "No routes yet. Add one with: shtl add NAME [PATH]"
 		return 0
 	fi
+	cwd="$(shtl_get_current_path 2> /dev/null)"
 	while IFS='' read -r entry; do
 		name="$(shtl_get_entry_name "$entry")"
+		path="$(shtl_get_entry_path "$entry")"
 		names+=("$name")
-		paths+=("$(shtl_get_entry_path "$entry")")
+		paths+=("$path")
+		expanded+=("$(shtl_expand_path "$path")")
 		if shtl_entry_is_persistent "$entry"; then
 			marks+=("  (persist)")
 		else
@@ -253,8 +263,22 @@ shtl_list_routes() {
 		fi
 		(( ${#name} > width )) && width=${#name}
 	done < <(shtl_get_entries)
+	if [[ -n $cwd ]]; then
+		for i in "${!expanded[@]}"; do
+			if shtl_path_contains "${expanded[i]}" "$cwd" && (( ${#expanded[i]} > best )); then
+				best=${#expanded[i]}
+			fi
+		done
+	fi
 	for i in "${!names[@]}"; do
-		printf '%-*s  %s%s\n' "$width" "${names[i]}" "${paths[i]}" "${marks[i]}"
+		if (( best < 0 )); then
+			pointer=""
+		elif (( ${#expanded[i]} == best )) && shtl_path_contains "${expanded[i]}" "$cwd"; then
+			pointer="* "
+		else
+			pointer="  "
+		fi
+		printf '%s%-*s  %s%s\n' "$pointer" "$width" "${names[i]}" "${paths[i]}" "${marks[i]}"
 	done
 	# Routes added before a command of the same name existed can't be jumped to
 	for name in "${names[@]}"; do

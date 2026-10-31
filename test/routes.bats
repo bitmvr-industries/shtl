@@ -465,3 +465,51 @@ load test_helper
 	run shtl add other "$HOME/work"
 	[[ $output == *"Route \"work\" also points to $HOME/work"* ]]
 }
+
+# Current route in list (#9)
+
+@test "list marks the route the current directory is in" {
+	mkdir -p "$DIR_A/sub"
+	shtl add a "$DIR_A"
+	shtl add b "$DIR_B"
+	cd "$DIR_A/sub"
+	run shtl list
+	[ "${lines[0]}" = "* a  $DIR_A" ]
+	[ "${lines[1]}" = "  b  $DIR_B" ]
+}
+
+@test "list marks the closest route when routes are nested" {
+	mkdir -p "$DIR_A/api/src"
+	shtl add work "$DIR_A"
+	shtl add api "$DIR_A/api"
+	cd "$DIR_A/api/src"
+	run shtl list
+	[ "${lines[0]}" = "* api   $DIR_A/api" ]
+	[ "${lines[1]}" = "  work  $DIR_A" ]
+}
+
+@test "list doesn't mark a route that only shares the start of the path" {
+	mkdir -p "${DIR_A}x"
+	shtl add a "$DIR_A"
+	cd "${DIR_A}x"
+	run shtl list
+	[ "$output" = "a  $DIR_A" ]
+}
+
+@test "list marks a ~/ route and keeps the persist mark" {
+	use_test_home
+	mkdir -p "$HOME/work"
+	shtl add work "$HOME/work" --persist
+	cd "$HOME/work"
+	run shtl list
+	[ "$output" = "* work  ~/work  (persist)" ]
+}
+
+@test "list marks every route for the same directory" {
+	shtl add a "$DIR_A"
+	shtl add b "$DIR_A"
+	cd "$DIR_A"
+	run shtl list
+	[ "${lines[0]}" = "* a  $DIR_A" ]
+	[ "${lines[1]}" = "* b  $DIR_A" ]
+}

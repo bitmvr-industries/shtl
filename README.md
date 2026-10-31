@@ -106,7 +106,7 @@ shtl - Help
                                     --persist allows a directory that doesn't exist yet, and clean skips the route
     update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory
     remove | rm NAME                Remove a route
-    list | ls                       List routes
+    list | ls                       List routes. * marks the route you are in
     clean                           Interactively remove routes whose directories no longer exist
     persist NAME                    Toggle whether clean skips a route
     path NAME                       Print a route's path (e.g. cp file "$(shtl path work)")
@@ -125,7 +125,7 @@ To go to a route, enter `shtl ROUTE_NAME`. These are examples of the commands:
 shtl add work              # save the current directory as "work"
 shtl add nas /Volumes/nas --persist
 shtl work                  # jump there
-shtl ls                    # list routes
+shtl ls                    # list routes, * marks the one you are in
 shtl clean                 # remove routes whose directories are gone
 shtl doctor                # find problems in the routes file
 ```
