@@ -2,7 +2,7 @@
 
 use std::process::ExitCode;
 
-use crate::commands::{COMMANDS, is_command};
+use crate::commands::{COMMANDS, is_command, valid_name};
 use crate::routes::{self, Route};
 use crate::store::{NewRoute, Store};
 use crate::{change, host, log, paths};
@@ -55,6 +55,7 @@ pub fn run(args: &[String]) -> ExitCode {
         "remove" | "rm" => remove(rest),
         "persist" => persist(rest),
         "clean" => clean(),
+        "doctor" => doctor(),
         "init" => {
             print!("{}", init_script());
             Ok(())
@@ -95,15 +96,6 @@ fn fail(msg: &str) -> Failed {
 /// The first argument, the route name all route commands need
 fn route_name(first: Option<&str>) -> Result<&str, Failed> {
     first.ok_or_else(|| fail("Please provide a route name"))
-}
-
-/// Names are free text in TOML. They can't start with "-" (flags), have
-/// white space (completion splits on it), or be a command.
-fn valid_name(name: &str) -> bool {
-    !name.is_empty()
-        && !name.starts_with('-')
-        && !name.chars().any(|c| c.is_whitespace() || c.is_control())
-        && !is_command(name)
 }
 
 fn open_store() -> Result<Store, Failed> {
@@ -397,6 +389,33 @@ fn clean() -> Outcome {
             Ok(())
         }
     }
+}
+
+/// `doctor`: reports problems in the routes file, with line numbers. Reads
+/// the text itself, so it works on a file that other commands reject.
+fn doctor() -> Outcome {
+    let file = routes::file_path();
+    println!("This host: {}", host::this_host());
+    let Some(text) = routes::read_text(&file).map_err(|msg| fail(&msg))? else {
+        println!("There is no routes file yet. Nothing to check");
+        return Ok(());
+    };
+    let problems = crate::doctor::check(&text);
+    if problems.is_empty() {
+        println!("No problems found in {}", file.display());
+        return Ok(());
+    }
+    println!("Problems found in {}:", file.display());
+    for problem in problems {
+        // A syntax error's message starts with its column
+        let sep = if problem.msg.starts_with("column ") {
+            ", "
+        } else {
+            ": "
+        };
+        println!("  Line {}{sep}{}", problem.line, problem.msg);
+    }
+    Err(Failed)
 }
 
 /// Prints only the path, for the shell function and for scripts

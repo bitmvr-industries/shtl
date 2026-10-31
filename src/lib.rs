@@ -2,6 +2,7 @@ pub mod change;
 pub mod clean;
 pub mod cli;
 pub mod commands;
+pub mod doctor;
 pub mod host;
 pub mod log;
 pub mod paths;
