@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Runs lint and the tests against each commit being pushed, in a temporary
+# Runs lint, the tests and the Rust checks against each commit being pushed, in a temporary
 # checkout, so uncommitted changes can't make them pass or fail. Also checks
 # that the committed ./shtl matches a fresh build of lib/ and src/.
 # Turn it on with: make hooks. Skip it once with: git push --no-verify
@@ -44,6 +44,8 @@ while read -r _ localSha _ _; do
 	make -C "$checkDir" lint > "$logFile" 2>&1 || fail "lint failed"
 	make -C "$checkDir" test > "$logFile" 2>&1 || fail "tests failed"
 	echo "pre-push: lint and $(grep -c '^ok ' "$logFile") tests passed" >&2
+	make -C "$checkDir" rust > "$logFile" 2>&1 || fail "Rust checks failed"
+	echo "pre-push: Rust checks passed" >&2
 	: > "$logFile"
 	git -C "$checkDir" diff --quiet -- shtl || fail "./shtl doesn't match lib/ and src/. Run make build and commit ./shtl"
 

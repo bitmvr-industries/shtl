@@ -62,10 +62,18 @@ test: build
 	@command -v bats > /dev/null || { echo "$(TIMESTAMP) - Test: bats not found. Install it with: brew install bats-core"; exit 1; }
 	@bats test
 
+# The Rust port (2.0, issue #20): format check, lint, and unit + integration tests
+rust:
+	@echo "$(TIMESTAMP) - Rust: Starting"
+	@cargo fmt --check
+	@cargo clippy --all-targets --quiet -- -D warnings
+	@cargo test --quiet
+	@echo "$(TIMESTAMP) - Rust: Finished"
+
 # Runs lint and the tests before every push (see .githooks/pre-push)
 hooks:
 	@git config core.hooksPath .githooks
 	@echo "$(TIMESTAMP) - Hooks: Enabled. Lint and tests now run before each push"
 
-.PHONY: build clean install uninstall lint test hooks
+.PHONY: build clean install uninstall lint test rust hooks
 

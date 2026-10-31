@@ -1,0 +1,16 @@
+[package]
+name = "shtl"
+version = "2.0.0-dev"
+edition = "2024"
+description = "Save directories as routes with short names, then go to them by name"
+license = "MIT"
+repository = "https://github.com/bitmvr-industries/shtl"
+
+[[bin]]
+name = "shtl"
+path = "src/main.rs"
+
+[dependencies]
+
+[dev-dependencies]
+assert_cmd = "2.2.2"

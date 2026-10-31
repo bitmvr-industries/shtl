@@ -30,3 +30,12 @@ jobs:
       - name: Install bats, zsh and expect
         run: sudo apt-get update && sudo apt-get install -y bats zsh expect
       - run: make test
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: make rust
