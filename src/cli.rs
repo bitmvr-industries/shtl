@@ -53,6 +53,7 @@ pub fn run(args: &[String]) -> ExitCode {
         "add" => add(rest),
         "update" => update(rest),
         "remove" | "rm" => remove(rest),
+        "persist" => persist(rest),
         "init" => {
             print!("{}", init_script());
             Ok(())
@@ -306,6 +307,41 @@ fn remove(args: &[String]) -> Outcome {
     if current.hosts.is_none() {
         log::info(&format!(
             "Route \"{name}\" had no hosts, so it is removed on every machine"
+        ));
+    }
+    Ok(())
+}
+
+/// `persist NAME`: turns persist on or off for this host's route only.
+/// Turning it off needs the directory, since only a persistent route can
+/// point to a missing one.
+fn persist(args: &[String]) -> Outcome {
+    let name = route_name(args.first().map(String::as_str))?;
+    let mut store = open_store()?;
+    let current = find_to_change(&store.routes, name, "persist")?;
+    if current.persist {
+        check_dir(
+            &paths::expand(&current.path, &home()),
+            false,
+            &format!(
+                "Point it at an existing directory with: shtl update {name} PATH, or remove it"
+            ),
+        )?;
+    }
+    let host = host::this_host();
+    let edits = change::retarget(
+        &store.routes,
+        &current,
+        &current.path,
+        !current.persist,
+        &host,
+    );
+    save_edits(&mut store, &edits, &host)?;
+    if current.persist {
+        log::info(&format!("Route \"{name}\" is no longer persistent"));
+    } else {
+        log::info(&format!(
+            "Route \"{name}\" is now persistent. Clean will skip it"
         ));
     }
     Ok(())
