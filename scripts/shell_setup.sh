@@ -4,7 +4,7 @@
 # Used by `make install` and `make uninstall`. Only edits the rc file after
 # the user says yes, and never prompts when not run from a terminal.
 
-readonly MARKER="# shtl: https://github.com/bitmvr/shtl"
+readonly MARKER="# shtl: https://github.com/bitmvr-industries/shtl"
 # shellcheck disable=SC2016 # written to the rc file literally, expanded there
 readonly INIT_LINE='if command -v shtl >/dev/null; then eval "$(shtl init)"; fi'
 

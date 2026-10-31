@@ -1,6 +1,6 @@
 # SHTL
 
-[![CI](https://github.com/bitmvr/shtl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bitmvr/shtl/actions/workflows/ci.yml)
+[![CI](https://github.com/bitmvr-industries/shtl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bitmvr-industries/shtl/actions/workflows/ci.yml)
 
 ## Install
 
@@ -14,7 +14,7 @@ A release has `shtl` as one file. It is not necessary to use `git` or `make`.
 
    ```sh
    mkdir -p ~/.local/bin
-   curl -fsSL -o ~/.local/bin/shtl https://github.com/bitmvr/shtl/releases/latest/download/shtl
+   curl -fsSL -o ~/.local/bin/shtl https://github.com/bitmvr-industries/shtl/releases/latest/download/shtl
    chmod +x ~/.local/bin/shtl
    ```
 
@@ -62,7 +62,7 @@ To add the shell function without `make install`, do the steps for your shell.
 2. Add these lines after `compinit`:
 
    ```sh
-   # shtl: https://github.com/bitmvr/shtl
+   # shtl: https://github.com/bitmvr-industries/shtl
    if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
    ```
 
@@ -78,7 +78,7 @@ To add the shell function without `make install`, do the steps for your shell.
 2. Add these lines to the end of the file:
 
    ```sh
-   # shtl: https://github.com/bitmvr/shtl
+   # shtl: https://github.com/bitmvr-industries/shtl
    if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
    ```
 
