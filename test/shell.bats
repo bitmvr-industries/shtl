@@ -33,6 +33,14 @@ load rust_helper
 	[ "${lines[1]}" = "$(shtl version)" ]
 }
 
+@test "the shell function passes update through" {
+	add_route work "$DIR_A"
+	run bash -c 'cd "$1" && eval "$(shtl init)" && shtl update work && shtl path work' _ "$DIR_B"
+	[ "$status" -eq 0 ]
+	[[ $output == *"$DIR_B" ]] || false
+	[ "$PWD" != "$DIR_B" ]
+}
+
 @test "the shell function stays put for an unknown route" {
 	run bash -c 'cd "$1" && eval "$(shtl init)"; shtl nope; echo "status=$?"; pwd' _ "$DIR_B"
 	[[ $output == *"status=1"* ]] || false

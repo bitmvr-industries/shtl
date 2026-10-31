@@ -51,6 +51,7 @@ pub fn run(args: &[String]) -> ExitCode {
         "list" | "ls" => list(rest),
         "path" => path(rest),
         "add" => add(rest),
+        "update" => update(rest),
         "init" => {
             print!("{}", init_script());
             Ok(())
@@ -245,6 +246,53 @@ fn route_dir(route: &Route, subdir: Option<&str>) -> Result<String, Failed> {
         return Err(fail(&format!("\"{dir}\" does not exist")));
     }
     Ok(dir)
+}
+
+/// This host's route `name`, for a command that changes it. Logs an error
+/// with suggestions when it doesn't exist.
+fn find_to_change(all: &[Route], name: &str, verb: &str) -> Result<Route, Failed> {
+    match find(all, name) {
+        Some(route) => Ok(route.clone()),
+        None => {
+            log::error(&format!(
+                "Could not {verb} route \"{name}\". The route does not exist"
+            ));
+            suggest(all, name);
+            Err(Failed)
+        }
+    }
+}
+
+/// Makes the edits for this host and saves, when there are any
+fn save_edits(store: &mut Store, edits: &[change::Edit], host: &str) -> Outcome {
+    if edits.is_empty() {
+        return Ok(());
+    }
+    store.apply(edits, host);
+    store.save().map_err(|msg| fail(&msg))
+}
+
+/// `update NAME [PATH]`: points this host's route at PATH and keeps its
+/// persist value. Never changes the route on another host.
+fn update(args: &[String]) -> Outcome {
+    let name = route_name(args.first().map(String::as_str))?;
+    let mut store = open_store()?;
+    let current = find_to_change(&store.routes, name, "update")?;
+    let path = resolve_path(args.get(1).map(String::as_str))?;
+    check_dir(
+        &path,
+        current.persist,
+        &format!(
+            "To make this route persistent, run: shtl persist {name}. Then run this update again"
+        ),
+    )?;
+    let stored = paths::contract(&path, &home());
+    let host = host::this_host();
+    let edits = change::retarget(&store.routes, &current, &stored, current.persist, &host);
+    save_edits(&mut store, &edits, &host)?;
+    warn_shared_dir(&store.routes, name, &path);
+    log::info(&format!("Route \"{name}\" now points to {path}"));
+    Ok(())
 }
 
 /// Prints only the path, for the shell function and for scripts

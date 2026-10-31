@@ -5,8 +5,10 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use toml_edit::{Array, ArrayOfTables, DocumentMut, Item, Table, value};
+use toml_edit::{Array, ArrayOfTables, DocumentMut, Item, Table, Value, value};
 
+use crate::change::Edit;
+use crate::host;
 use crate::routes::{self, Route};
 
 /// A new route, as it is written
@@ -46,14 +48,7 @@ impl Store {
 
     /// Adds a route at the end of the file, after a blank line
     pub fn push(&mut self, route: &NewRoute) {
-        let mut table = Table::new();
-        table.insert("name", value(&route.name));
-        table.insert("path", value(&route.path));
-        if route.persist {
-            table.insert("persist", value(true));
-        }
-        table.insert("hosts", value(route.hosts.iter().collect::<Array>()));
-        table.decor_mut().set_prefix("\n");
+        let table = new_table(route);
         let list = self
             .doc
             .entry("route")
@@ -81,6 +76,63 @@ impl Store {
             .as_array_of_tables_mut()
             .and_then(|list| list.get_mut(index))
             .expect("route index from this document")
+    }
+
+    /// Makes the edits for this host. Edits that delete or insert a route
+    /// go last, so the indexes of the others still match the file.
+    pub fn apply(&mut self, edits: &[Edit], host: &str) {
+        let (mut structural, in_place): (Vec<&Edit>, Vec<&Edit>) = edits
+            .iter()
+            .partition(|e| matches!(e, Edit::Delete { .. } | Edit::Insert { .. }));
+        for edit in in_place {
+            match edit {
+                Edit::Rewrite {
+                    index,
+                    path,
+                    persist,
+                } => {
+                    let table = self.route_table(*index);
+                    set_keeping_decor(table, "path", Value::from(path.as_str()));
+                    if *persist {
+                        set_keeping_decor(table, "persist", Value::from(true));
+                    } else {
+                        table.remove("persist");
+                    }
+                }
+                Edit::AddHost { index } => self.add_host(*index, host),
+                Edit::RemoveHost { index } => {
+                    if let Some(hosts) = self
+                        .route_table(*index)
+                        .get_mut("hosts")
+                        .and_then(Item::as_array_mut)
+                    {
+                        remove_host(hosts, host);
+                    }
+                }
+                Edit::Delete { .. } | Edit::Insert { .. } => {}
+            }
+        }
+        structural.sort_by_key(|e| match e {
+            Edit::Delete { index } => std::cmp::Reverse(*index),
+            Edit::Insert { after, .. } => std::cmp::Reverse(*after),
+            _ => std::cmp::Reverse(0),
+        });
+        for edit in structural {
+            let list = self.doc["route"]
+                .as_array_of_tables_mut()
+                .expect("route list from this document");
+            match edit {
+                Edit::Delete { index } => {
+                    list.remove(*index);
+                }
+                Edit::Insert { after, route } => {
+                    let mut table = new_table(route);
+                    table.set_position(list.get(*after).and_then(Table::position));
+                    list.insert(after + 1, table);
+                }
+                _ => {}
+            }
+        }
     }
 
     pub fn text(&self) -> String {
@@ -115,6 +167,53 @@ impl Store {
             .map_err(failed)?;
         tmp.persist(&target).map_err(|e| failed(e.error))?;
         Ok(())
+    }
+}
+
+/// A route's table, after a blank line
+fn new_table(route: &NewRoute) -> Table {
+    let mut table = Table::new();
+    table.insert("name", value(&route.name));
+    table.insert("path", value(&route.path));
+    if route.persist {
+        table.insert("persist", value(true));
+    }
+    table.insert("hosts", value(route.hosts.iter().collect::<Array>()));
+    table.decor_mut().set_prefix("\n");
+    table
+}
+
+/// Sets a key's value, keeping the spaces and comment around the old one
+fn set_keeping_decor(table: &mut Table, key: &str, new: Value) {
+    match table.get_mut(key).and_then(Item::as_value_mut) {
+        Some(old) => {
+            let decor = old.decor().clone();
+            *old = new;
+            *old.decor_mut() = decor;
+        }
+        None => {
+            table.insert(key, Item::Value(new));
+        }
+    }
+}
+
+/// Takes `host` out of a hosts array. When the first item goes, the next
+/// one takes its place in the layout (no space after "[", or the indent of
+/// a multi-line array).
+fn remove_host(hosts: &mut Array, host: &str) {
+    loop {
+        let found = hosts
+            .iter()
+            .position(|v| v.as_str().is_some_and(|h| host::same(h, host)));
+        let Some(i) = found else { break };
+        let removed = hosts.remove(i);
+        if i == 0
+            && let Some(first) = hosts.get_mut(0)
+        {
+            first
+                .decor_mut()
+                .set_prefix(removed.decor().prefix().cloned().unwrap_or_default());
+        }
     }
 }
 
@@ -194,6 +293,88 @@ mod tests {
         assert_eq!(
             store.text(),
             "version = 2\n[[route]]\nname = \"a\"\npath = \"/a\"\n[[route]]\nname = \"b\"\npath = \"/b\"\nhosts = [\"midgard\", \"mbp\"]\n"
+        );
+    }
+
+    const SHARED: &str = "version = 2\n\n# Work\n[[route]]\nname = \"work\"\npath = \"/old\"  # was\nhosts = [\"mbp\", \"midgard\"]\n\n# Last\n[[route]]\nname = \"z\"\npath = \"/z\"\n";
+
+    #[test]
+    fn apply_rewrite_keeps_comments_and_drops_persist_false() {
+        let (_dir, mut store) = store_with(
+            "version = 2\n[[route]]\nname = \"w\"\npath = \"/old\"  # was\npersist = true\nhosts = [\"mbp\"]\n",
+        );
+        store.apply(
+            &[Edit::Rewrite {
+                index: 0,
+                path: "/new".into(),
+                persist: false,
+            }],
+            "mbp",
+        );
+        assert_eq!(
+            store.text(),
+            "version = 2\n[[route]]\nname = \"w\"\npath = \"/new\"  # was\nhosts = [\"mbp\"]\n"
+        );
+        store.apply(
+            &[Edit::Rewrite {
+                index: 0,
+                path: "/new".into(),
+                persist: true,
+            }],
+            "mbp",
+        );
+        assert_eq!(
+            store.text(),
+            "version = 2\n[[route]]\nname = \"w\"\npath = \"/new\"  # was\nhosts = [\"mbp\"]\npersist = true\n"
+        );
+    }
+
+    #[test]
+    fn apply_split_inserts_after_the_route_it_splits() {
+        let (_dir, mut store) = store_with(SHARED);
+        store.apply(
+            &[
+                Edit::RemoveHost { index: 0 },
+                Edit::Insert {
+                    after: 0,
+                    route: new_route("work", "/new", false, &["MBP"]),
+                },
+            ],
+            "MBP",
+        );
+        assert_eq!(
+            store.text(),
+            "version = 2\n\n# Work\n[[route]]\nname = \"work\"\npath = \"/old\"  # was\nhosts = [\"midgard\"]\n\n[[route]]\nname = \"work\"\npath = \"/new\"\nhosts = [\"MBP\"]\n\n# Last\n[[route]]\nname = \"z\"\npath = \"/z\"\n"
+        );
+    }
+
+    #[test]
+    fn apply_remove_host_keeps_the_arrays_style() {
+        let (_dir, mut store) = store_with(
+            "version = 2\n[[route]]\nname = \"a\"\npath = \"/a\"\nhosts = [\"x\", \"mbp\", \"y\"]\n[[route]]\nname = \"b\"\npath = \"/b\"\nhosts = [\n  \"mbp\",\n  \"y\",\n]\n",
+        );
+        store.apply(
+            &[Edit::RemoveHost { index: 0 }, Edit::RemoveHost { index: 1 }],
+            "mbp",
+        );
+        assert_eq!(
+            store.text(),
+            "version = 2\n[[route]]\nname = \"a\"\npath = \"/a\"\nhosts = [\"x\", \"y\"]\n[[route]]\nname = \"b\"\npath = \"/b\"\nhosts = [\n  \"y\",\n]\n"
+        );
+    }
+
+    #[test]
+    fn apply_join_and_delete() {
+        let (_dir, mut store) = store_with(
+            "version = 2\n\n# Mine\n[[route]]\nname = \"w\"\npath = \"/old\"\nhosts = [\"mbp\"]\n\n# Theirs\n[[route]]\nname = \"w\"\npath = \"/new\"\nhosts = [\"asgard\"]\n",
+        );
+        store.apply(
+            &[Edit::Delete { index: 0 }, Edit::AddHost { index: 1 }],
+            "mbp",
+        );
+        assert_eq!(
+            store.text(),
+            "version = 2\n\n# Theirs\n[[route]]\nname = \"w\"\npath = \"/new\"\nhosts = [\"asgard\", \"mbp\"]\n"
         );
     }
 
