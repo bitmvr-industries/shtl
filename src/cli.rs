@@ -48,11 +48,8 @@ pub fn run(args: &[String]) -> ExitCode {
             Ok(())
         }
         "list" | "ls" => list(rest),
-        other => {
-            log::error(&format!("\"{other}\" is not a shtl command or route"));
-            print!("{USAGE}");
-            Err(Failed)
-        }
+        "path" => path(rest),
+        other => go(other, rest),
     };
     match outcome {
         Ok(()) => ExitCode::SUCCESS,
@@ -70,6 +67,98 @@ fn load() -> Result<Vec<Route>, Failed> {
         log::error(&msg);
         Failed
     })
+}
+
+fn fail(msg: &str) -> Failed {
+    log::error(msg);
+    Failed
+}
+
+/// The first argument, the route name all route commands need
+fn route_name(args: &[String]) -> Result<&str, Failed> {
+    args.first()
+        .map(String::as_str)
+        .ok_or_else(|| fail("Please provide a route name"))
+}
+
+/// This host's route with this name
+fn find<'a>(all: &'a [Route], name: &str) -> Option<&'a Route> {
+    routes::for_host(all, &host::this_host())
+        .into_iter()
+        .find(|r| r.name == name)
+}
+
+/// Logs this host's route names that start with `prefix`, ignoring case,
+/// for an unknown name. Never picks one: you type it (or tab-complete it).
+/// False when nothing matches.
+fn suggest(all: &[Route], prefix: &str) -> bool {
+    let prefix = prefix.to_lowercase();
+    let names: Vec<&str> = sorted_for_host(all)
+        .iter()
+        .map(|r| r.name.as_str())
+        .filter(|name| name.to_lowercase().starts_with(&prefix))
+        .collect();
+    if names.is_empty() {
+        return false;
+    }
+    log::info(&format!("Did you mean: {}", names.join(", ")));
+    true
+}
+
+/// The directory of a route, or of a folder in it. It must exist.
+fn route_dir(route: &Route, subdir: Option<&str>) -> Result<String, Failed> {
+    let dir = paths::expand(&route.path, &home());
+    if !std::path::Path::new(&dir).is_dir() {
+        return Err(fail(&format!(
+            "Route \"{}\" points to {dir}, which doesn't exist",
+            route.name
+        )));
+    }
+    let Some(subdir) = subdir.filter(|s| !s.is_empty()) else {
+        return Ok(dir);
+    };
+    if subdir.starts_with('/') {
+        return Err(fail(&format!(
+            "\"{subdir}\" must be relative to the route. Leave out the leading \"/\""
+        )));
+    }
+    let dir = paths::normalize(&format!("{dir}/{subdir}"));
+    if !std::path::Path::new(&dir).is_dir() {
+        return Err(fail(&format!("\"{dir}\" does not exist")));
+    }
+    Ok(dir)
+}
+
+/// Prints only the path, for the shell function and for scripts
+fn path(args: &[String]) -> Outcome {
+    let name = route_name(args)?;
+    let all = load()?;
+    let Some(route) = find(&all, name) else {
+        log::error(&format!("Route \"{name}\" does not exist"));
+        suggest(&all, name);
+        return Err(Failed);
+    };
+    println!("{}", route_dir(route, args.get(1).map(String::as_str))?);
+    Ok(())
+}
+
+/// `shtl NAME [SUBDIR]`. shtl can't change its shell's directory: the
+/// shell function from `shtl init` does the cd. Without it, print the path
+/// and say how to set it up.
+fn go(name: &str, args: &[String]) -> Outcome {
+    let all = load()?;
+    let Some(route) = find(&all, name) else {
+        log::error(&format!("\"{name}\" is not a shtl command or route"));
+        if !suggest(&all, name) {
+            print!("{USAGE}");
+        }
+        return Err(Failed);
+    };
+    println!("{}", route_dir(route, args.first().map(String::as_str))?);
+    log::warn(
+        "shtl can't change directory without its shell function. To set it up, run: shtl setup",
+    );
+    Ok(())
 }
 
 /// This host's routes, sorted by name without regard to case
