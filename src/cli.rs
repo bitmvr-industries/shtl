@@ -52,6 +52,7 @@ pub fn run(args: &[String]) -> ExitCode {
         "path" => path(rest),
         "add" => add(rest),
         "update" => update(rest),
+        "remove" | "rm" => remove(rest),
         "init" => {
             print!("{}", init_script());
             Ok(())
@@ -292,6 +293,21 @@ fn update(args: &[String]) -> Outcome {
     save_edits(&mut store, &edits, &host)?;
     warn_shared_dir(&store.routes, name, &path);
     log::info(&format!("Route \"{name}\" now points to {path}"));
+    Ok(())
+}
+
+/// `remove NAME`: removes this host's route only
+fn remove(args: &[String]) -> Outcome {
+    let name = route_name(args.first().map(String::as_str))?;
+    let mut store = open_store()?;
+    let current = find_to_change(&store.routes, name, "remove")?;
+    let host = host::this_host();
+    save_edits(&mut store, &[change::remove(&current, &host)], &host)?;
+    if current.hosts.is_none() {
+        log::info(&format!(
+            "Route \"{name}\" had no hosts, so it is removed on every machine"
+        ));
+    }
     Ok(())
 }
 

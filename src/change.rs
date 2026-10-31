@@ -107,6 +107,17 @@ pub fn retarget(
     edits
 }
 
+/// Removes this host's route `current`: takes this host out of a shared
+/// route, or deletes a route that only this host has. A route with no
+/// hosts is deleted, which removes it on every machine.
+pub fn remove(current: &Route, host: &str) -> Edit {
+    let index = current.index;
+    match &current.hosts {
+        Some(hosts) if hosts.iter().any(|h| !host::same(h, host)) => Edit::RemoveHost { index },
+        _ => Edit::Delete { index },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,6 +226,24 @@ mod tests {
     fn retarget_to_the_same_path_and_persist_changes_nothing() {
         let routes = [route(0, "work", "/a", false, Some(&["midgard", "mbp"]))];
         assert_eq!(retarget(&routes, &routes[0], "/a", false, "mbp"), []);
+    }
+
+    #[test]
+    fn remove_takes_this_host_out_of_a_shared_route() {
+        let r = route(3, "work", "/w", false, Some(&["midgard", "MBP"]));
+        assert_eq!(remove(&r, "mbp"), Edit::RemoveHost { index: 3 });
+    }
+
+    #[test]
+    fn remove_deletes_a_route_only_this_host_has() {
+        let r = route(3, "work", "/w", false, Some(&["mbp"]));
+        assert_eq!(remove(&r, "mbp"), Edit::Delete { index: 3 });
+    }
+
+    #[test]
+    fn remove_deletes_a_route_with_no_hosts() {
+        let r = route(3, "work", "/w", false, None);
+        assert_eq!(remove(&r, "mbp"), Edit::Delete { index: 3 });
     }
 
     #[test]
