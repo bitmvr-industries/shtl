@@ -4,7 +4,19 @@
 
 ## Install
 
-You can install `shtl` from a release or from the source.
+You can install `shtl` with Homebrew, from a release, or from the source.
+
+### Install with Homebrew
+
+1. Enter this command:
+
+   ```sh
+   brew install bitmvr-industries/tap/shtl
+   ```
+
+2. Add the shell function to your rc file. Refer to [Shell Integration](#shell-integration).
+
+To install a new release, enter `brew upgrade shtl`. To remove `shtl`, enter `shtl unsetup` and then `brew uninstall shtl`.
 
 ### Install from a Release
 
