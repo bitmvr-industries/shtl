@@ -4,6 +4,29 @@
 
 ## Install
 
+You can install `shtl` from a release or from the source.
+
+### Install from a Release
+
+A release has `shtl` as one file. It is not necessary to use `git` or `make`.
+
+1. Enter these commands:
+
+   ```sh
+   mkdir -p ~/.local/bin
+   curl -fsSL -o ~/.local/bin/shtl https://github.com/bitmvr/shtl/releases/latest/download/shtl
+   chmod +x ~/.local/bin/shtl
+   ```
+
+2. Add the shell function to your rc file. Refer to [Shell Integration](#shell-integration).
+3. Make sure that `~/.local/bin` is in your `PATH`.
+
+   On Ubuntu, `~/.profile` adds `~/.local/bin` to your `PATH` only if the directory is on the computer when your session starts. Thus, if step 1 made the directory, you must start a new session.
+
+To install a new release, do step 1 again.
+
+### Install from the Source
+
 1. Go to the root directory of the project.
 2. Enter this command:
 
