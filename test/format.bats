@@ -29,7 +29,7 @@ load test_helper
 	run shtl path odd
 	[ "$output" = "$BATS_TEST_TMPDIR/dir:persist" ]
 	run --separate-stderr shtl list
-	[[ $output != *"(persist)"* ]]
+	[[ $output != *"(persist)"* ]] || false
 }
 
 @test "add rejects names with brackets or a leading #" {
@@ -61,7 +61,7 @@ load test_helper
 	printf '%s\n' "# shtl routes" "work[]:/tmp" > "$ROUTES_FILE"
 	run shtl list
 	[ "$status" -eq 1 ]
-	[[ $output == *"is not a shtl routes file"* ]]
+	[[ $output == *"is not a shtl routes file"* ]] || false
 	[ "$(cat "$ROUTES_FILE")" = "# shtl routes"$'\n'"work[]:/tmp" ]
 }
 
@@ -82,7 +82,7 @@ load test_helper
 	printf '%s\n' "work:/tmp" > "$ROUTES_FILE"
 	run shtl list
 	[ "$status" -eq 1 ]
-	[[ $output == *"is not a shtl routes file"* ]]
+	[[ $output == *"is not a shtl routes file"* ]] || false
 	[ "$(cat "$ROUTES_FILE")" = "work:/tmp" ]
 }
 
@@ -93,7 +93,7 @@ load test_helper
 	printf '%s\n' "# shtl routes v1" "" "# a comment" "nas[persist]:/Volumes/nas" "work[]:/a:b c" > "$ROUTES_FILE"
 	run shtl doctor
 	[ "$status" -eq 0 ]
-	[[ $output == "No problems found"* ]]
+	[[ $output == "No problems found"* ]] || false
 }
 
 @test "doctor passes when there is no routes file" {
@@ -108,10 +108,10 @@ load test_helper
 	printf '%s\n' "home[]:/tmp " >> "$ROUTES_FILE"
 	run shtl doctor
 	[ "$status" -eq 1 ]
-	[[ $output == *"Line 1: has a Windows line ending"* ]]
-	[[ $output == *"Line 2: has a Windows line ending"* ]]
-	[[ $output == *"Line 3: ends with spaces or tabs"* ]]
-	[[ $output != *"Line 1: must be"* ]]
+	[[ $output == *"Line 1: has a Windows line ending"* ]] || false
+	[[ $output == *"Line 2: has a Windows line ending"* ]] || false
+	[[ $output == *"Line 3: ends with spaces or tabs"* ]] || false
+	[[ $output != *"Line 1: must be"* ]] || false
 }
 
 @test "doctor finds a wrong header" {
@@ -119,7 +119,7 @@ load test_helper
 	printf '%s\n' "# shtl routes" "work[]:/tmp" > "$ROUTES_FILE"
 	run shtl doctor
 	[ "$status" -eq 1 ]
-	[[ $output == *"Line 1: must be: # shtl routes v1"* ]]
+	[[ $output == *"Line 1: must be: # shtl routes v1"* ]] || false
 }
 
 @test "doctor finds malformed lines, bad flags and relative paths" {
@@ -127,11 +127,11 @@ load test_helper
 	printf '%s\n' "# shtl routes v1" "work:/tmp" "a[nope]:/tmp" "b[persist,]:/tmp" "c[]:tmp" "d[]:" > "$ROUTES_FILE"
 	run shtl doctor
 	[ "$status" -eq 1 ]
-	[[ $output == *"Line 2: is not a route in the format NAME[FLAGS]:PATH"* ]]
-	[[ $output == *"Line 3: \"nope\" is not a flag"* ]]
-	[[ $output != *"Line 4:"* ]]
-	[[ $output == *"Line 5: path \"tmp\" is not absolute"* ]]
-	[[ $output == *"Line 6: path \"\" is not absolute"* ]]
+	[[ $output == *"Line 2: is not a route in the format NAME[FLAGS]:PATH"* ]] || false
+	[[ $output == *"Line 3: \"nope\" is not a flag"* ]] || false
+	[[ $output != *"Line 4:"* ]] || false
+	[[ $output == *"Line 5: path \"tmp\" is not absolute"* ]] || false
+	[[ $output == *"Line 6: path \"\" is not absolute"* ]] || false
 }
 
 @test "doctor finds bad, duplicate and command route names" {
@@ -139,10 +139,10 @@ load test_helper
 	printf '%s\n' "# shtl routes v1" "work[]:/tmp" "list[]:/tmp" "-x[]:/tmp" "[]:/tmp" "work[]:/var" > "$ROUTES_FILE"
 	run shtl doctor
 	[ "$status" -eq 1 ]
-	[[ $output == *"Line 3: route name \"list\" is a shtl command"* ]]
-	[[ $output == *"Line 4: route name \"-x\" is not valid"* ]]
-	[[ $output == *"Line 5: route name \"\" is not valid"* ]]
-	[[ $output == *"Line 6: route name \"work\" is also on line 2"* ]]
+	[[ $output == *"Line 3: route name \"list\" is a shtl command"* ]] || false
+	[[ $output == *"Line 4: route name \"-x\" is not valid"* ]] || false
+	[[ $output == *"Line 5: route name \"\" is not valid"* ]] || false
+	[[ $output == *"Line 6: route name \"work\" is also on line 2"* ]] || false
 }
 
 @test "doctor doesn't change the routes file" {
@@ -157,7 +157,7 @@ load test_helper
 	printf '%s\n' "# shtl routes v1 " > "$ROUTES_FILE"
 	run shtl list
 	[ "$status" -eq 1 ]
-	[[ $output == *"run: shtl doctor"* ]]
+	[[ $output == *"run: shtl doctor"* ]] || false
 }
 
 # Writing the routes file (#1, #3)

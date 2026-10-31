@@ -7,11 +7,11 @@ load test_helper
 @test "help and no arguments print usage" {
 	run shtl help
 	[ "$status" -eq 0 ]
-	[[ $output == *"Usage: shtl ROUTE_NAME"* ]]
+	[[ $output == *"Usage: shtl ROUTE_NAME"* ]] || false
 
 	run shtl
 	[ "$status" -eq 0 ]
-	[[ $output == *"Usage: shtl ROUTE_NAME"* ]]
+	[[ $output == *"Usage: shtl ROUTE_NAME"* ]] || false
 }
 
 @test "version prints the contents of VERSION" {
@@ -25,21 +25,21 @@ load test_helper
 @test "clean explains when there are no routes" {
 	run shtl clean
 	[ "$status" -eq 0 ]
-	[[ $output == *"No routes to clean"* ]]
+	[[ $output == *"No routes to clean"* ]] || false
 }
 
 @test "clean has nothing to do when every directory exists" {
 	shtl add a "$DIR_A"
 	run shtl clean
 	[ "$status" -eq 0 ]
-	[[ $output == *"All routes point to existing directories"* ]]
+	[[ $output == *"All routes point to existing directories"* ]] || false
 }
 
 @test "clean skips persistent routes with missing directories" {
 	shtl add old "$MISSING_DIR" --persist
 	run shtl clean
 	[ "$status" -eq 0 ]
-	[[ $output == *"All routes point to existing directories"* ]]
+	[[ $output == *"All routes point to existing directories"* ]] || false
 }
 
 @test "clean refuses to run without a terminal" {
@@ -48,7 +48,7 @@ load test_helper
 	rmdir "$MISSING_DIR"
 	run shtl clean < /dev/null
 	[ "$status" -eq 1 ]
-	[[ $output == *"needs an interactive terminal"* ]]
+	[[ $output == *"needs an interactive terminal"* ]] || false
 	[ "$(routes)" = "old[]:$MISSING_DIR" ]
 }
 
@@ -84,8 +84,8 @@ load test_helper
 
 @test "the shell function stays put for an unknown route" {
 	run bash -c 'cd "$1" && eval "$(shtl init)"; shtl nope; echo "status=$?"; pwd' _ "$DIR_B"
-	[[ $output == *"status=1"* ]]
-	[[ $output == *"$DIR_B" ]]
+	[[ $output == *"status=1"* ]] || false
+	[[ $output == *"$DIR_B" ]] || false
 }
 
 # Log messages
@@ -106,7 +106,7 @@ load test_helper
 	shtl add work "$DIR_A"
 	run bash -c 'cd "$1" && eval "$(shtl init)" && shtl update work && shtl path work' _ "$DIR_B"
 	[ "$status" -eq 0 ]
-	[[ $output == *"$DIR_B" ]]
+	[[ $output == *"$DIR_B" ]] || false
 }
 
 @test "tab completion offers routes and directories for update in bash" {
@@ -115,5 +115,5 @@ load test_helper
 		COMP_WORDS=(shtl update ""); COMP_CWORD=2; _shtl; echo "${COMPREPLY[*]}"
 		cd "$1"; COMP_WORDS=(shtl update work ""); COMP_CWORD=3; _shtl; echo "${COMPREPLY[*]}"' _ "$BATS_TEST_TMPDIR"
 	[ "${lines[0]}" = "work" ]
-	[[ ${lines[1]} == *a* && ${lines[1]} == *b* ]]
+	[[ ${lines[1]} == *a* && ${lines[1]} == *b* ]] || false
 }

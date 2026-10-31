@@ -35,14 +35,14 @@ load test_helper
 	shtl add work "$DIR_A"
 	run shtl add work "$DIR_B"
 	[ "$status" -eq 1 ]
-	[[ $output == *"already exists"* ]]
+	[[ $output == *"already exists"* ]] || false
 	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
 @test "add requires a name" {
 	run shtl add
 	[ "$status" -eq 1 ]
-	[[ $output == *"Please provide a route name"* ]]
+	[[ $output == *"Please provide a route name"* ]] || false
 }
 
 @test "add rejects names with a colon" {
@@ -101,7 +101,7 @@ load test_helper
 	for path in . .. ./x x/y; do
 		run shtl add rel "$path"
 		[ "$status" -eq 1 ]
-		[[ $output == *"is not an absolute path"* ]]
+		[[ $output == *"is not an absolute path"* ]] || false
 	done
 	[ -z "$(routes)" ]
 }
@@ -119,7 +119,7 @@ load test_helper
 @test "add rejects a missing directory without --persist" {
 	run shtl add later "$MISSING_DIR"
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"*"--persist"* ]]
+	[[ $output == *"does not exist"*"--persist"* ]] || false
 	[ -z "$(routes)" ]
 }
 
@@ -133,7 +133,7 @@ load test_helper
 	touch "$BATS_TEST_TMPDIR/file"
 	run shtl add cfg "$BATS_TEST_TMPDIR/file" --persist
 	[ "$status" -eq 1 ]
-	[[ $output == *"is not a directory"* ]]
+	[[ $output == *"is not a directory"* ]] || false
 	[ -z "$(routes)" ]
 }
 
@@ -155,7 +155,7 @@ load test_helper
 	rmdir "$BATS_TEST_TMPDIR/gone"
 	run shtl add here
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"* ]]
+	[[ $output == *"does not exist"* ]] || false
 	[ -z "$(routes)" ]
 }
 
@@ -165,7 +165,7 @@ load test_helper
 	shtl add work "$DIR_A"
 	run shtl update work "$DIR_B"
 	[ "$status" -eq 0 ]
-	[[ $output == *"now points to $DIR_B"* ]]
+	[[ $output == *"now points to $DIR_B"* ]] || false
 	[ "$(routes)" = "work[]:$DIR_B" ]
 }
 
@@ -181,7 +181,7 @@ load test_helper
 	cd "$DIR_A"
 	run shtl update work ../b
 	[ "$status" -eq 1 ]
-	[[ $output == *"is not an absolute path"* ]]
+	[[ $output == *"is not an absolute path"* ]] || false
 	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
@@ -195,7 +195,7 @@ load test_helper
 	shtl add work "$DIR_A"
 	run shtl update work "$MISSING_DIR"
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"*"shtl persist work. Then run this update again"* ]]
+	[[ $output == *"does not exist"*"shtl persist work. Then run this update again"* ]] || false
 	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
@@ -204,7 +204,7 @@ load test_helper
 	touch "$BATS_TEST_TMPDIR/file"
 	run shtl update work "$BATS_TEST_TMPDIR/file"
 	[ "$status" -eq 1 ]
-	[[ $output == *"is not a directory"* ]]
+	[[ $output == *"is not a directory"* ]] || false
 	[ "$(routes)" = "work[persist]:$DIR_A" ]
 }
 
@@ -224,14 +224,14 @@ load test_helper
 @test "update fails for an unknown route" {
 	run shtl update nope "$DIR_A"
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"* ]]
+	[[ $output == *"does not exist"* ]] || false
 	[ -z "$(routes)" ]
 }
 
 @test "update requires a name" {
 	run shtl update
 	[ "$status" -eq 1 ]
-	[[ $output == *"Please provide a route name"* ]]
+	[[ $output == *"Please provide a route name"* ]] || false
 }
 
 # remove
@@ -254,7 +254,7 @@ load test_helper
 @test "remove fails for an unknown route" {
 	run shtl remove nope
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"* ]]
+	[[ $output == *"does not exist"* ]] || false
 }
 
 # list
@@ -262,7 +262,7 @@ load test_helper
 @test "list explains when there are no routes" {
 	run shtl list
 	[ "$status" -eq 0 ]
-	[[ $output == *"No routes yet"* ]]
+	[[ $output == *"No routes yet"* ]] || false
 }
 
 @test "list prints names and paths in columns, marking persistent routes" {
@@ -278,8 +278,8 @@ load test_helper
 	printf '%s\n' "# shtl routes v1" "update[]:$DIR_A" "work[]:$DIR_B" > "$ROUTES_FILE"
 	run --separate-stderr shtl list
 	[ "$status" -eq 0 ]
-	[[ $stderr == *'Route "update" has the same name as a shtl command'* ]]
-	[[ $stderr != *'"work"'* ]]
+	[[ $stderr == *'Route "update" has the same name as a shtl command'* ]] || false
+	[[ $stderr != *'"work"'* ]] || false
 	run --separate-stderr shtl path update
 	[ "$output" = "$DIR_A" ]
 }
@@ -318,7 +318,7 @@ load test_helper
 @test "path fails for an unknown route" {
 	run shtl path nope
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"* ]]
+	[[ $output == *"does not exist"* ]] || false
 }
 
 @test "path fails when the directory is gone" {
@@ -328,7 +328,7 @@ load test_helper
 	run --separate-stderr shtl path old
 	[ "$status" -eq 1 ]
 	[ -z "$output" ]
-	[[ $stderr == *"doesn't exist"* ]]
+	[[ $stderr == *"doesn't exist"* ]] || false
 }
 
 # persist
@@ -337,11 +337,11 @@ load test_helper
 	shtl add work "$DIR_A"
 	run shtl persist work
 	[ "$status" -eq 0 ]
-	[[ $output == *"now persistent"* ]]
+	[[ $output == *"now persistent"* ]] || false
 	[ "$(routes)" = "work[persist]:$DIR_A" ]
 
 	run shtl persist work
-	[[ $output == *"no longer persistent"* ]]
+	[[ $output == *"no longer persistent"* ]] || false
 	[ "$(routes)" = "work[]:$DIR_A" ]
 }
 
@@ -356,14 +356,14 @@ load test_helper
 	shtl add later "$MISSING_DIR" --persist
 	run shtl persist later
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"*"shtl update later PATH"* ]]
+	[[ $output == *"does not exist"*"shtl update later PATH"* ]] || false
 	[ "$(routes)" = "later[persist]:$MISSING_DIR" ]
 }
 
 @test "persist fails for an unknown route" {
 	run shtl persist nope
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"* ]]
+	[[ $output == *"does not exist"* ]] || false
 }
 
 # Running a route without the shell function
@@ -373,13 +373,13 @@ load test_helper
 	run --separate-stderr shtl work
 	[ "$status" -eq 0 ]
 	[ "$output" = "$DIR_A" ]
-	[[ $stderr == *"shell function"* ]]
+	[[ $stderr == *"shell function"* ]] || false
 }
 
 @test "shtl with an unknown command or route fails" {
 	run shtl nope
 	[ "$status" -eq 1 ]
-	[[ $output == *"is not a shtl command or route"* ]]
+	[[ $output == *"is not a shtl command or route"* ]] || false
 }
 
 # Did you mean (#6)
@@ -398,7 +398,7 @@ load test_helper
 	shtl add work "$DIR_A"
 	run shtl path zz
 	[ "$status" -eq 1 ]
-	[[ $output != *"Did you mean"* ]]
+	[[ $output != *"Did you mean"* ]] || false
 }
 
 @test "shtl with an unknown name suggests routes instead of printing help" {
@@ -406,13 +406,13 @@ load test_helper
 	run shtl wo
 	[ "$status" -eq 1 ]
 	[[ $output == *"Did you mean: work"* ]] || false
-	[[ $output != *"Usage:"* ]]
+	[[ $output != *"Usage:"* ]] || false
 }
 
 @test "shtl with an unknown name and no match still prints help" {
 	run shtl zz
 	[ "$status" -eq 1 ]
-	[[ $output == *"Usage:"* ]]
+	[[ $output == *"Usage:"* ]] || false
 }
 
 @test "remove, update and persist suggest routes for an unknown name" {
@@ -429,7 +429,7 @@ load test_helper
 	run bash -c 'cd "$1" && eval "$(shtl init)"; shtl wo; echo "status=$?"; pwd' _ "$DIR_B"
 	[[ $output == *"Did you mean: work"* ]] || false
 	[[ $output == *"status=1"* ]] || false
-	[[ $output == *"$DIR_B" ]]
+	[[ $output == *"$DIR_B" ]] || false
 }
 
 # Shared directories (#8)
@@ -447,14 +447,14 @@ load test_helper
 	shtl add other "$DIR_B"
 	run shtl update other "$DIR_A"
 	[ "$status" -eq 0 ]
-	[[ $output == *"Route \"work\" also points to $DIR_A"* ]]
+	[[ $output == *"Route \"work\" also points to $DIR_A"* ]] || false
 }
 
 @test "updating a route to its own directory doesn't warn" {
 	shtl add work "$DIR_A"
 	run shtl update work "$DIR_A"
 	[ "$status" -eq 0 ]
-	[[ $output != *"also points to"* ]]
+	[[ $output != *"also points to"* ]] || false
 }
 
 @test "the shared directory warning compares ~/ paths expanded" {
@@ -463,7 +463,7 @@ load test_helper
 	mkdir -p "$(dirname "$ROUTES_FILE")"
 	printf '%s\n' "# shtl routes v1" "work[]:~/work" > "$ROUTES_FILE"
 	run shtl add other "$HOME/work"
-	[[ $output == *"Route \"work\" also points to $HOME/work"* ]]
+	[[ $output == *"Route \"work\" also points to $HOME/work"* ]] || false
 }
 
 # Current route in list (#9)

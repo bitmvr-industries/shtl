@@ -53,6 +53,8 @@ uninstall:
 lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
 	@shellcheck -x $(LIB_FILES) $(SRC_FILES) $(SCRIPT_FILES) $(TEST_FILES) $(HOOK_FILES)
+	@# bash 3.2 (macOS) doesn't fail a test on a false [[ ]] unless it's the last line
+	@! grep -nE '^[[:space:]]+\[\[ .* \]\][[:space:]]*$$' $(TEST_FILES) || { echo "$(TIMESTAMP) - Lint: End these test assertions with || false"; exit 1; }
 	@echo "$(TIMESTAMP) - Lint: Finished"
 
 test: build
