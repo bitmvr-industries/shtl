@@ -16,7 +16,7 @@ fn with_args(args: &[&str]) -> (String, String, i32) {
 fn version_prints_the_crate_version() {
     assert_eq!(
         with_args(&["version"]),
-        ("2.0.0-dev\n".into(), String::new(), 0)
+        (format!("{}\n", env!("CARGO_PKG_VERSION")), String::new(), 0)
     );
 }
 
