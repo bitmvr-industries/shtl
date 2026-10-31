@@ -2,238 +2,99 @@
 
 [![CI](https://github.com/bitmvr-industries/shtl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bitmvr-industries/shtl/actions/workflows/ci.yml)
 
-## Install
-
-You can install `shtl` with Homebrew, from a release, or from the source.
-
-### Install with Homebrew
-
-1. Enter this command:
-
-   ```sh
-   brew install bitmvr-industries/tap/shtl
-   ```
-
-2. Add the shell function to your rc file. Refer to [Shell Integration](#shell-integration).
-
-To install a new release, enter `brew upgrade shtl`. To remove `shtl`, enter `shtl unsetup` and then `brew uninstall shtl`.
-
-### Install from a Release
-
-A release has `shtl` as one file. It is not necessary to use `git` or `make`.
-
-1. Enter these commands:
-
-   ```sh
-   mkdir -p ~/.local/bin
-   curl -fsSL -o ~/.local/bin/shtl https://github.com/bitmvr-industries/shtl/releases/latest/download/shtl
-   chmod +x ~/.local/bin/shtl
-   ```
-
-2. Add the shell function to your rc file. Refer to [Shell Integration](#shell-integration).
-3. Make sure that `~/.local/bin` is in your `PATH`.
-
-   On Ubuntu, `~/.profile` adds `~/.local/bin` to your `PATH` only if the directory is on the computer when your session starts. Thus, if step 1 made the directory, you must start a new session.
-
-To install a new release, do step 1 again.
-
-### Install from the Source
-
-1. Go to the root directory of the project.
-2. Enter this command:
-
-   ```sh
-   make install
-   ```
-
-   The command installs `shtl` in `~/.local/bin`. It is not necessary to use `sudo`.
-
-3. Make sure that `~/.local/bin` is in your `PATH`. If it is not in your `PATH`, the command shows a warning.
-
-To install `shtl` in a different directory, set `PREFIX`. For example:
+`shtl` saves directories as routes with short names. Then you go to a directory with its route name. `shtl` operates in zsh and bash, on macOS and Linux.
 
 ```sh
-sudo make install PREFIX=/usr/local
+shtl add work        # save the current directory as "work"
+shtl work            # go to it
+shtl work code/api   # go to a folder in it (Tab completes it)
 ```
 
-To remove `shtl`, enter `make uninstall`. If you set `PREFIX` when you installed `shtl`, set the same `PREFIX` again.
+## Install
+
+```sh
+brew install bitmvr-industries/tap/shtl
+shtl setup
+```
+
+Then open a new terminal.
+
+| Method | Install | Upgrade | Remove |
+|---|---|---|---|
+| Homebrew | `brew install bitmvr-industries/tap/shtl` | `brew upgrade shtl` | `shtl unsetup`, then `brew uninstall shtl` |
+| Release file | The `curl` command below | The `curl` command again | `shtl unsetup`, then delete `~/.local/bin/shtl` |
+| Source | `make install` | `git pull`, then `make install` | `make uninstall` |
+
+Release file (`~/.local/bin` must be in your `PATH`):
+
+```sh
+mkdir -p ~/.local/bin
+curl -fsSL -o ~/.local/bin/shtl https://github.com/bitmvr-industries/shtl/releases/latest/download/shtl
+chmod +x ~/.local/bin/shtl
+```
+
+`make install` installs `shtl` in `~/.local/bin` and does `shtl setup`. To use a different directory, set `PREFIX`, for example `sudo make install PREFIX=/usr/local`.
 
 ## Shell Integration
 
-A script cannot change the directory of your shell. Thus, `shtl` has a shell function that does the `cd` command for the script. The shell function also gives tab completion for route names.
+A script cannot change the directory of your shell. Thus, `shtl` has a shell function that does the `cd` command. The shell function also gives tab completion.
 
-### Add the Shell Function
+`shtl setup` adds the shell function to your rc file. It shows the changes and asks before it changes the file. `shtl unsetup` removes it.
 
-1. Enter this command:
+| Shell | RC file |
+|---|---|
+| zsh | `$ZDOTDIR/.zshrc` or `~/.zshrc` |
+| bash on Linux | `~/.bashrc` |
+| bash on macOS | The first of `~/.bash_profile`, `~/.bash_login`, `~/.profile`. If that file reads `~/.bashrc`, then `~/.bashrc`. |
 
-   ```sh
-   shtl setup
-   ```
-
-   `shtl setup` shows the rc file and the lines for that file. It adds the lines only if you type `y`.
-
-2. Open a new terminal.
-
-`make install` does `shtl setup` for you. To remove the lines, enter `shtl unsetup`. `make uninstall` does `shtl unsetup` for you.
-
-### The RC File
-
-`shtl setup` uses the rc file that your shell reads when it starts:
-
-- zsh: `$ZDOTDIR/.zshrc`. If you did not set `ZDOTDIR`, `~/.zshrc`.
-- bash on Linux: `~/.bashrc`.
-- bash on macOS: the first file from this list that is on the computer: `~/.bash_profile`, `~/.bash_login`, `~/.profile`. If there is no file, `shtl setup` makes `~/.bash_profile`.
-
-  If that file uses the `source` command or the `.` command to read `~/.bashrc`, `shtl setup` uses `~/.bashrc`.
-
-### Add the Lines Manually
-
-1. Open the rc file for your shell. Refer to [The RC File](#the-rc-file).
-2. Add these lines to the end of the file:
-
-   ```sh
-   # shtl: https://github.com/bitmvr-industries/shtl
-   if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
-   ```
-
-   For zsh, add the lines after `compinit`. If you add the lines before `compinit`, tab completion does not operate.
-
-3. Open a new terminal.
-
-## Installation Test
-
-1. Enter this command:
-
-   ```sh
-   shtl help
-   ```
-
-   `shtl` shows its help text:
-
-```
-
-shtl - Help
-
-  Usage: shtl ROUTE_NAME [SUBDIR]
-         shtl COMMAND [ARGS]
-
-    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see setup)
-    add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory
-                                    --persist allows a directory that doesn't exist yet, and clean skips the route
-    update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory
-    remove | rm NAME                Remove a route
-    list | ls                       List routes. * marks the route you are in
-    clean                           Interactively remove routes whose directories no longer exist
-    persist NAME                    Toggle whether clean skips a route
-    path NAME [SUBDIR]              Print a route's path (e.g. cp file "$(shtl path work)")
-    doctor                          Check the routes file for problems
-    setup                           Add the shell function to your shell's rc file (asks first)
-    unsetup                         Remove the shell function from your rc files (asks first)
-    init                            Print the shell function. setup adds it to your rc file for you
-    help                            Display this information
-    version                         Print the shtl version
-
-```
-
-## Examples
-
-To go to a route, enter `shtl ROUTE_NAME`. These are examples of the commands:
+To add the shell function manually, add these lines to the end of your rc file. For zsh, add them after `compinit`.
 
 ```sh
-shtl add work              # save the current directory as "work"
-shtl add nas /Volumes/nas --persist
-shtl work                  # jump there
-shtl work code/api         # jump to a folder under the route (Tab completes it)
-shtl ls                    # list routes, * marks the one you are in
-shtl clean                 # remove routes whose directories are gone
-shtl doctor                # find problems in the routes file
+# shtl: https://github.com/bitmvr-industries/shtl
+if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
 ```
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `shtl NAME [SUBDIR]` | Go to a route, or to a folder in it. |
+| `shtl add NAME [PATH] [--persist]` | Add a route. `PATH` is absolute. The default is the current directory. |
+| `shtl update NAME [PATH]` | Change the path of a route. |
+| `shtl remove NAME`, `shtl rm NAME` | Remove a route. |
+| `shtl list`, `shtl ls` | Show the routes. A `*` shows the route that you are in. |
+| `shtl clean` | Remove routes to directories that are not on the computer. |
+| `shtl persist NAME` | Add or remove the `persist` flag. |
+| `shtl path NAME [SUBDIR]` | Show the path, for example `cp file "$(shtl path work)"`. |
+| `shtl doctor` | Find problems in the routes file. |
+| `shtl setup`, `shtl unsetup` | Add or remove the shell function in your rc file. |
+| `shtl init`, `shtl help`, `shtl version` | Show the shell function, the help text, or the version. |
 
 ## Routes File
 
-### Location
-
-- If you set `XDG_CONFIG_HOME`, the routes file is `$XDG_CONFIG_HOME/shtl/routes`.
-- If you did not set `XDG_CONFIG_HOME`, the routes file is `~/.config/shtl/routes`.
-
-### Format
-
-The routes file is plain text. You can change it in a text editor. The first line is the header. Each line after the header is one route, in the format `NAME[FLAGS]:PATH`:
+The routes file is `~/.config/shtl/routes`, or `$XDG_CONFIG_HOME/shtl/routes` if you set `XDG_CONFIG_HOME`. It is plain text:
 
 ```
 # shtl routes v1
 nas[persist]:/Volumes/nas
-work[]:/Users/me/work
+work[]:~/work
 ```
 
-| Part | Description |
-|---|---|
-| `NAME` | The name of the route. |
-| `FLAGS` | A list of flags, with a comma between each flag. The list can be empty. |
-| `PATH` | The absolute path of the directory. A path in your home directory starts with `~`. |
+- Each route is `NAME[FLAGS]:PATH`.
+- `~` is the home directory of the computer.
+- The `persist` flag lets a route point to a directory that is not on the computer. `shtl clean` does not remove it.
+- A name must not contain `:`, `[` or `]`, start with `-` or `#`, or be a `shtl` command.
+- `shtl` keeps comments, blank lines and the sequence of the routes.
 
-At this time, `persist` is the only flag. A route that has the `persist` flag can point to a directory that is not on the computer at this time. Use it to prepare routes for a different computer. `shtl clean` does not remove a route that has the `persist` flag.
-
-The path is the last part of the line. Thus, the path can contain colons and all other characters.
-
-A line that starts with `#` is a comment. `shtl` does not change comments, blank lines, or the sequence of the routes. `shtl add` puts a new route at the end of the file. `shtl list` sorts the routes by name.
-
-### Home Directory
-
-If a route is in your home directory, `shtl` writes `~` for your home directory in the path. For example, `/Users/me/work` on macOS is `~/work` in the routes file. When `shtl` reads the route, it replaces `~` with the home directory of the computer. Thus, you can use the same routes file on macOS and on Linux.
-
-### Route Names
-
-A route name must not:
-
-- Contain `:`, `[`, or `]`.
-- Start with `-` or `#`.
-- Be the same as a `shtl` command, for example `add` or `list`.
-
-### Find Problems
-
-If you change the routes file in a text editor, make sure that `shtl` can read it. Enter this command:
-
-```sh
-shtl doctor
-```
-
-`shtl doctor` shows each problem and its line number. It does not change the routes file. Correct the problems in a text editor. `shtl doctor` finds these problems:
-
-- A first line that is not `# shtl routes v1`.
-- Windows line endings, or spaces or tabs at the end of a line.
-- A line that does not have the format `NAME[FLAGS]:PATH`.
-- A flag that is not `persist`.
-- A path that does not start with `/`.
-- A route name that is not correct, or that is the same as a `shtl` command.
-- Two routes that have the same name.
-
-## How It Works
-
-When you enter `shtl ROUTE_NAME`, the shell function sends the route name to the `shtl` script. The script finds the path of the route in the routes file and shows it. Then the shell function goes to that directory.
-
-![How shtl works](docs/pipeline.svg)
-
-The diagram source is `docs/pipeline.d2`. If you change the source, enter this command to make the diagram again:
-
-```sh
-d2 docs/pipeline.d2 docs/pipeline.svg
-```
+If you change the file in a text editor, enter `shtl doctor` to find problems.
 
 ## Contribute
 
-1. Clone this repository.
-2. Make a branch.
-3. Make sure that [bats](https://github.com/bats-core/bats-core) is installed. To install it, enter `brew install bats-core`.
-4. To do the tests, enter `make test`.
-5. Open a pull request with your branch.
-
-To do the lint and the tests automatically before each push, enter `make hooks` one time in each clone.
-
-CI does the lint and the tests on Linux only. On macOS, you must do the tests on your computer.
-
-The tests are in `test/`. The tests use the `shtl` script that `make` makes and a temporary configuration directory. Thus, the tests do not change your routes.
+- Enter `make test` to do the tests. The tests use [bats](https://github.com/bats-core/bats-core) (`brew install bats-core`).
+- Enter `make hooks` to do the lint and the tests before each push.
+- CI does the tests on Linux only. On macOS, do the tests on your computer.
+- [docs/pipeline.svg](docs/pipeline.svg) shows how `shtl` operates. To make it again from its source, enter `d2 docs/pipeline.d2 docs/pipeline.svg`.
 
 ## License
 
-`shtl` uses the MIT License. Refer to [LICENSE](LICENSE).
+MIT. Refer to [LICENSE](LICENSE).
