@@ -68,7 +68,7 @@ case $subcommand in
 			shtl_route "$subcommand"
 		else
 			shtl_log "ERROR" "\"${subcommand}\" is not a shtl command or route"
-			shtl_usage
+			shtl_suggest_routes "$subcommand" || shtl_usage
 			exit 1
 		fi
 		;;

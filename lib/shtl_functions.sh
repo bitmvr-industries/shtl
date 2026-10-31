@@ -186,6 +186,29 @@ shtl_get_route_names(){
 	done < <(shtl_get_entries)
 }
 
+# Logs the routes whose names start with $1, ignoring case, for an unknown
+# name. Never picks one: the user types it (or tab-completes it). Returns 1
+# when nothing matches.
+shtl_suggest_routes() {
+	local suggestions
+	suggestions="$(shtl_get_route_names | SHTL_PREFIX="$1" awk 'index(tolower($0), tolower(ENVIRON["SHTL_PREFIX"])) == 1 { out = out (n++ ? ", " : "") $0 } END { if (n) print out }')"
+	[[ -n $suggestions ]] || return 1
+	shtl_log "INFO" "Did you mean: ${suggestions}"
+}
+
+# Warns about other routes that point to the same directory as route $1.
+# $2 is the real path; stored ~/ paths are expanded before comparing.
+shtl_warn_shared_dir() {
+	local name="$1" path="$2" entry other
+	while IFS='' read -r entry; do
+		other="$(shtl_get_entry_name "$entry")"
+		[[ $other == "$name" ]] && continue
+		if [[ $(shtl_expand_path "$(shtl_get_entry_path "$entry")") == "$path" ]]; then
+			shtl_log "WARN" "Route \"${other}\" also points to ${path}"
+		fi
+	done < <(shtl_get_entries)
+}
+
 shtl_get_current_path() {
 	pwd
 }
@@ -304,7 +327,8 @@ shtl_add_route(){
 	shtl_validate_path "$providedPath" || return 1
 	route="$(shtl_resolve_path "$providedPath")" || return 1
 	shtl_check_route_dir "$route" "$3" "To add a route for a directory that will exist later, use --persist" || return 1
-	shtl_write_routes shtl_print_routes_with_entry "$(shtl_format_entry "$1" "$3" "$(shtl_contract_path "$route")")"
+	shtl_write_routes shtl_print_routes_with_entry "$(shtl_format_entry "$1" "$3" "$(shtl_contract_path "$route")")" || return 1
+	shtl_warn_shared_dir "$1" "$route"
 }
 
 shtl_delete_route() {
@@ -313,6 +337,7 @@ shtl_delete_route() {
 		shtl_remove_route_entry "$routeName"
 	else
 		shtl_log "ERROR" "Could not remove route \"${routeName}\". The route does not exist"
+		shtl_suggest_routes "$routeName"
 		return 1
 	fi
 }
@@ -325,6 +350,7 @@ shtl_update_route() {
 	local entry route persistent=""
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Could not update route \"${routeName}\". The route does not exist"
+		shtl_suggest_routes "$routeName"
 		return 1
 	fi
 	shtl_validate_path "$providedPath" || return 1
@@ -333,6 +359,7 @@ shtl_update_route() {
 	shtl_entry_is_persistent "$entry" && persistent="yes"
 	shtl_check_route_dir "$route" "$persistent" "To make this route persistent, run: shtl persist ${routeName}. Then run this update again" || return 1
 	shtl_write_routes shtl_print_routes_replacing "$routeName" "$(shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$(shtl_contract_path "$route")")" || return 1
+	shtl_warn_shared_dir "$routeName" "$route"
 	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
 }
 
@@ -447,6 +474,7 @@ shtl_toggle_persist() {
 	local entry newEntry flags
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Could not persist route \"${routeName}\". The route does not exist"
+		shtl_suggest_routes "$routeName"
 		return 1
 	fi
 	entry="$(shtl_get_route_entry "$routeName")"
@@ -476,6 +504,7 @@ shtl_print_path(){
 	local path
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Route \"${routeName}\" does not exist"
+		shtl_suggest_routes "$routeName"
 		return 1
 	fi
 	path="$(shtl_get_route "$routeName")"

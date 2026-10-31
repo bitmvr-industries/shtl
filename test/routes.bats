@@ -381,3 +381,87 @@ load test_helper
 	[ "$status" -eq 1 ]
 	[[ $output == *"is not a shtl command or route"* ]]
 }
+
+# Did you mean (#6)
+
+@test "an unknown route lists the routes that start with it" {
+	shtl add work "$DIR_A"
+	shtl add Workshop "$DIR_B"
+	shtl add home "$DIR_B"
+	run shtl path wo
+	[ "$status" -eq 1 ]
+	[[ $output == *"Did you mean: Workshop, work"* || $output == *"Did you mean: work, Workshop"* ]] || false
+	[[ $output != *"home"* ]] || false
+}
+
+@test "an unknown route with no prefix match suggests nothing" {
+	shtl add work "$DIR_A"
+	run shtl path zz
+	[ "$status" -eq 1 ]
+	[[ $output != *"Did you mean"* ]]
+}
+
+@test "shtl with an unknown name suggests routes instead of printing help" {
+	shtl add work "$DIR_A"
+	run shtl wo
+	[ "$status" -eq 1 ]
+	[[ $output == *"Did you mean: work"* ]] || false
+	[[ $output != *"Usage:"* ]]
+}
+
+@test "shtl with an unknown name and no match still prints help" {
+	run shtl zz
+	[ "$status" -eq 1 ]
+	[[ $output == *"Usage:"* ]]
+}
+
+@test "remove, update and persist suggest routes for an unknown name" {
+	shtl add work "$DIR_A"
+	for cmd in remove update persist; do
+		run shtl "$cmd" wo
+		[ "$status" -eq 1 ]
+		[[ $output == *"Did you mean: work"* ]] || false
+	done
+}
+
+@test "the shell function suggests routes and stays put" {
+	shtl add work "$DIR_A"
+	run bash -c 'cd "$1" && eval "$(shtl init)"; shtl wo; echo "status=$?"; pwd' _ "$DIR_B"
+	[[ $output == *"Did you mean: work"* ]] || false
+	[[ $output == *"status=1"* ]] || false
+	[[ $output == *"$DIR_B" ]]
+}
+
+# Shared directories (#8)
+
+@test "add warns when another route points to the same directory" {
+	shtl add work "$DIR_A"
+	run shtl add other "$DIR_A"
+	[ "$status" -eq 0 ]
+	[[ $output == *"WARN"*"Route \"work\" also points to $DIR_A"* ]] || false
+	[ "$(routes)" = "work[]:$DIR_A"$'\n'"other[]:$DIR_A" ]
+}
+
+@test "update warns when another route points to the new directory" {
+	shtl add work "$DIR_A"
+	shtl add other "$DIR_B"
+	run shtl update other "$DIR_A"
+	[ "$status" -eq 0 ]
+	[[ $output == *"Route \"work\" also points to $DIR_A"* ]]
+}
+
+@test "updating a route to its own directory doesn't warn" {
+	shtl add work "$DIR_A"
+	run shtl update work "$DIR_A"
+	[ "$status" -eq 0 ]
+	[[ $output != *"also points to"* ]]
+}
+
+@test "the shared directory warning compares ~/ paths expanded" {
+	use_test_home
+	mkdir -p "$HOME/work"
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" "work[]:~/work" > "$ROUTES_FILE"
+	run shtl add other "$HOME/work"
+	[[ $output == *"Route \"work\" also points to $HOME/work"* ]]
+}
