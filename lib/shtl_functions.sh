@@ -45,7 +45,7 @@ shtl_init(){
 		return 0
 	fi
 	if [[ $firstLine == "# shtl routes "* ]]; then
-		shtl_log "ERROR" "${ROUTES_FILE} was written by a newer version of shtl (${firstLine#\# shtl routes }). Please upgrade shtl"
+		shtl_log "ERROR" "${ROUTES_FILE} uses routes format ${firstLine#\# shtl routes }, but this shtl reads ${ROUTES_HEADER#\# shtl routes }"
 		exit 1
 	fi
 	shtl_log "ERROR" "${ROUTES_FILE} is not a shtl routes file. Its first line must be: ${ROUTES_HEADER}"
@@ -184,15 +184,30 @@ shtl_list_routes() {
 	done
 }
 
-shtl_generate_route() {
-	local currentDir
-	currentDir="$(shtl_get_current_path)"
-	local routeName="$1"
-	local providedPath="$2"
-	local persist="$3"
-	local route
-	route="$(shtl_normalize_path "${providedPath:-$currentDir}")"
-	shtl_format_entry "$routeName" "$persist" "$route"
+# Prints the path a route stores: PATH, or the current directory, normalized.
+# pwd fails, printing nothing, when the current directory was deleted.
+shtl_resolve_path() {
+	local path="$1"
+	if [[ -z $path ]] && ! path="$(shtl_get_current_path 2> /dev/null)"; then
+		shtl_log "ERROR" "The current directory does not exist anymore. Give a PATH, or cd to an existing directory"
+		return 1
+	fi
+	shtl_normalize_path "$path"
+}
+
+# A route must point to a directory. Only a persistent route can point to one
+# that doesn't exist yet. Checks the resolved path, the one the route stores.
+# Usage: shtl_check_route_dir PATH PERSISTENT(yes|"") HINT
+shtl_check_route_dir() {
+	local path="$1" persistent="$2" hint="$3"
+	if [[ -e $path && ! -d $path ]]; then
+		shtl_log "ERROR" "\"${path}\" is not a directory"
+		return 1
+	fi
+	if [[ -z $persistent && ! -d $path ]]; then
+		shtl_log "ERROR" "\"${path}\" does not exist. Only a persistent route can point to a missing directory. ${hint}"
+		return 1
+	fi
 }
 
 shtl_route_name_exists(){
@@ -228,12 +243,10 @@ shtl_add_route(){
 		return 1
 	fi	
 	shtl_validate_path "$2" || return 1
-	# Only a persistent route can point to a directory that doesn't exist yet
-	if [[ -z $3 && -n $2 && ! -d $2 ]]; then
-		shtl_log "ERROR" "\"${2}\" does not exist. To add a route for a directory that will exist later, use --persist"
-		return 1
-	fi
-	shtl_generate_route "$@" >> "$ROUTES_FILE" && shtl_refresh_routes
+	local route
+	route="$(shtl_resolve_path "$2")" || return 1
+	shtl_check_route_dir "$route" "$3" "To add a route for a directory that will exist later, use --persist" || return 1
+	shtl_format_entry "$1" "$3" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes
 }
 
 shtl_delete_route() {
@@ -250,18 +263,16 @@ shtl_delete_route() {
 shtl_update_route() {
 	local routeName="$1"
 	local providedPath="$2"
-	local entry route
+	local entry route persistent=""
 	if ! shtl_route_name_exists "$routeName"; then
 		shtl_log "ERROR" "Could not update route \"${routeName}\". The route does not exist"
 		return 1
 	fi
 	shtl_validate_path "$providedPath" || return 1
 	entry="$(shtl_get_route_entry "$routeName")"
-	if [[ -n $providedPath && ! -d $providedPath ]] && ! shtl_entry_is_persistent "$entry"; then
-		shtl_log "ERROR" "\"${providedPath}\" does not exist. Only a persistent route can point to a missing directory. To make this route persistent, run: shtl persist ${routeName}"
-		return 1
-	fi
-	route="$(shtl_normalize_path "${providedPath:-$(shtl_get_current_path)}")"
+	route="$(shtl_resolve_path "$providedPath")" || return 1
+	shtl_entry_is_persistent "$entry" && persistent="yes"
+	shtl_check_route_dir "$route" "$persistent" "To make this route persistent, run: shtl persist ${routeName}. Then run this update again" || return 1
 	shtl_remove_route_entry "$routeName"
 	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes
 	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
@@ -383,6 +394,7 @@ shtl_toggle_persist() {
 	entry="$(shtl_get_route_entry "$routeName")"
 	flags="$(shtl_get_entry_flags "$entry")"
 	if shtl_entry_is_persistent "$entry"; then
+		shtl_check_route_dir "$(shtl_get_entry_path "$entry")" "" "Point it at an existing directory with: shtl update ${routeName} PATH, or remove it" || return 1
 		# Drop "persist" from the comma-separated flags, keeping any others
 		flags=",${flags},"
 		flags="${flags//,persist,/,}"

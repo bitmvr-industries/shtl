@@ -131,6 +131,36 @@ load test_helper
 	[ -z "$(routes)" ]
 }
 
+@test "add rejects a path that is a file, even with --persist" {
+	touch "$BATS_TEST_TMPDIR/file"
+	run shtl add cfg "$BATS_TEST_TMPDIR/file" --persist
+	[ "$status" -eq 1 ]
+	[[ $output == *"is not a directory"* ]]
+	[ -z "$(routes)" ]
+}
+
+@test "add checks the normalized path, not the typed one" {
+	ln -s "$DIR_A" "$BATS_TEST_TMPDIR/link"
+	# The typed path exists through the symlink, but the stored path does not
+	run shtl add r "$BATS_TEST_TMPDIR/link/../b/../missing"
+	[ "$status" -eq 1 ]
+	[ -z "$(routes)" ]
+	# The typed path does not exist, but the stored path does
+	run shtl add r "$MISSING_DIR/../a"
+	[ "$status" -eq 0 ]
+	[ "$(routes)" = "r[]:$DIR_A" ]
+}
+
+@test "add rejects a current directory that was deleted" {
+	mkdir "$BATS_TEST_TMPDIR/gone"
+	cd "$BATS_TEST_TMPDIR/gone"
+	rmdir "$BATS_TEST_TMPDIR/gone"
+	run shtl add here
+	[ "$status" -eq 1 ]
+	[[ $output == *"does not exist"* ]]
+	[ -z "$(routes)" ]
+}
+
 # update
 
 @test "update points a route at a new path" {
@@ -167,8 +197,17 @@ load test_helper
 	shtl add work "$DIR_A"
 	run shtl update work "$MISSING_DIR"
 	[ "$status" -eq 1 ]
-	[[ $output == *"does not exist"*"persist"* ]]
+	[[ $output == *"does not exist"*"shtl persist work. Then run this update again"* ]]
 	[ "$(routes)" = "work[]:$DIR_A" ]
+}
+
+@test "update rejects a path that is a file" {
+	shtl add work "$DIR_A" --persist
+	touch "$BATS_TEST_TMPDIR/file"
+	run shtl update work "$BATS_TEST_TMPDIR/file"
+	[ "$status" -eq 1 ]
+	[[ $output == *"is not a directory"* ]]
+	[ "$(routes)" = "work[persist]:$DIR_A" ]
 }
 
 @test "update accepts a missing directory for a persistent route" {
@@ -313,6 +352,14 @@ load test_helper
 	shtl add a.b "$DIR_B"
 	shtl persist a.b
 	[ "$(routes)" = "a.b[persist]:$DIR_B"$'\n'"axb[]:$DIR_A" ]
+}
+
+@test "persist won't turn off for a route whose directory is missing" {
+	shtl add later "$MISSING_DIR" --persist
+	run shtl persist later
+	[ "$status" -eq 1 ]
+	[[ $output == *"does not exist"*"shtl update later PATH"* ]]
+	[ "$(routes)" = "later[persist]:$MISSING_DIR" ]
 }
 
 @test "persist fails for an unknown route" {

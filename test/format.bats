@@ -56,12 +56,12 @@ load test_helper
 	[ "$output" = "work" ]
 }
 
-@test "a routes file from a newer shtl is left alone" {
+@test "a routes file in another format version is left alone" {
 	mkdir -p "$(dirname "$ROUTES_FILE")"
 	printf '%s\n' "# shtl routes v2" "something new" > "$ROUTES_FILE"
 	run shtl list
 	[ "$status" -eq 1 ]
-	[[ $output == *"newer version of shtl (v2)"* ]]
+	[[ $output == *"uses routes format v2, but this shtl reads v1"* ]]
 	[ "$(cat "$ROUTES_FILE")" = "# shtl routes v2"$'\n'"something new" ]
 }
 
