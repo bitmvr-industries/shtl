@@ -215,3 +215,7 @@ To do the lint and the tests automatically before each push, enter `make hooks` 
 CI does the lint and the tests on Linux only. On macOS, you must do the tests on your computer.
 
 The tests are in `test/`. The tests use the `shtl` script that `make` makes and a temporary configuration directory. Thus, the tests do not change your routes.
+
+## License
+
+`shtl` uses the MIT License. Refer to [LICENSE](LICENSE).
