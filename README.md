@@ -22,7 +22,17 @@ Then open a new terminal.
 | Method | Install | Upgrade | Remove |
 |---|---|---|---|
 | Homebrew | `brew install bitmvr-industries/tap/shtl` | `brew upgrade shtl` | `shtl unsetup`, then `brew uninstall shtl` |
+| Release file | The `curl` command below | The `curl` command again | `shtl unsetup`, then delete `~/.local/bin/shtl` |
 | Source | `make install` | `git pull`, then `make install` | `make uninstall` |
+
+Release file, for macOS on Apple silicon and Linux on x86-64 or ARM64:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/bitmvr-industries/shtl/master/install.sh | sh
+shtl setup
+```
+
+`install.sh` downloads the file for your computer from the latest release, examines its checksum and installs `shtl` in `~/.local/bin`. `~/.local/bin` must be in your `PATH`.
 
 To install from the source, you must have [Rust](https://rustup.rs). `make install` builds `shtl` with `cargo`, installs it in `~/.local/bin` and does `shtl setup`. To use a different directory, set `PREFIX`, for example `sudo make install PREFIX=/usr/local`.
 

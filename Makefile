@@ -44,7 +44,7 @@ lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
 	@cargo fmt --check
 	@cargo clippy --all-targets --quiet -- -D warnings
-	@shellcheck -x $(TEST_FILES) $(HOOK_FILES)
+	@shellcheck -x install.sh $(TEST_FILES) $(HOOK_FILES)
 	@# bash 3.2 (macOS) doesn't fail a test on a false [[ ]] unless it's the last line
 	@! grep -nE '^[[:space:]]+\[\[ .* \]\][[:space:]]*$$' $(TEST_FILES) || { echo "$(TIMESTAMP) - Lint: End these test assertions with || false"; exit 1; }
 	@echo "$(TIMESTAMP) - Lint: Finished"
