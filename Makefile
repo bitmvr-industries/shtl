@@ -8,7 +8,6 @@ VERSION=`cat VERSION`
 
 LIB_FILES=`find "./lib" -type f -name "*.sh"`
 SRC_FILES=`find "./src" -type f -name "*.sh"`
-SCRIPT_FILES=`find "./scripts" -type f -name "*.sh"`
 TEST_FILES=`find "./test" -type f -name "*.bash" -o -type f -name "*.bats"`
 HOOK_FILES=`find "./.githooks" -type f`
 TIMESTAMP=`date -u +"%Y-%m-%dT%H:%M:%SZ"`
@@ -42,17 +41,19 @@ install: build
 	@echo "$(TIMESTAMP) - Install: Installed to $(BIN_DIR)/shtl"
 	@case ":$$PATH:" in *":$(BIN_DIR):"*) ;; *) echo "$(TIMESTAMP) - Install: Warning: $(BIN_DIR) is not on your PATH" ;; esac
 	@echo "$(TIMESTAMP) - Install: Complete"
-	@bash scripts/shell_setup.sh install
+	@echo ""
+	@./$(EXECUTABLE) setup
 
-uninstall:
+uninstall: build
 	@echo "$(TIMESTAMP) - Uninstall: Starting"
 	@rm -f "$(BIN_DIR)/$(EXECUTABLE)"
 	@echo "$(TIMESTAMP) - Uninstall: Complete"
-	@bash scripts/shell_setup.sh uninstall
+	@echo ""
+	@./$(EXECUTABLE) unsetup
 
 lint:
 	@echo "$(TIMESTAMP) - Lint: Starting"
-	@shellcheck -x $(LIB_FILES) $(SRC_FILES) $(SCRIPT_FILES) $(TEST_FILES) $(HOOK_FILES)
+	@shellcheck -x $(LIB_FILES) $(SRC_FILES) $(TEST_FILES) $(HOOK_FILES)
 	@# bash 3.2 (macOS) doesn't fail a test on a false [[ ]] unless it's the last line
 	@! grep -nE '^[[:space:]]+\[\[ .* \]\][[:space:]]*$$' $(TEST_FILES) || { echo "$(TIMESTAMP) - Lint: End these test assertions with || false"; exit 1; }
 	@echo "$(TIMESTAMP) - Lint: Finished"

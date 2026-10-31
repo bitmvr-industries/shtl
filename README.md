@@ -50,37 +50,41 @@ To remove `shtl`, enter `make uninstall`. If you set `PREFIX` when you installed
 
 A script cannot change the directory of your shell. Thus, `shtl` has a shell function that does the `cd` command for the script. The shell function also gives tab completion for route names.
 
-`make install` shows a prompt to add the shell function to your rc file. If you type `y`, it is not necessary to do the steps in this section. `make uninstall` shows a prompt to remove the shell function.
+### Add the Shell Function
 
-To add the shell function without `make install`, do the steps for your shell.
-
-### zsh
-
-1. Open your rc file:
-   - If you set `ZDOTDIR`, open `$ZDOTDIR/.zshrc`.
-   - If you did not set `ZDOTDIR`, open `~/.zshrc`.
-2. Add these lines after `compinit`:
+1. Enter this command:
 
    ```sh
-   # shtl: https://github.com/bitmvr-industries/shtl
-   if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
+   shtl setup
    ```
 
-   If you add the lines before `compinit`, tab completion does not operate.
+   `shtl setup` shows the rc file and the lines for that file. It adds the lines only if you type `y`.
 
-3. Open a new terminal.
+2. Open a new terminal.
 
-### bash
+`make install` does `shtl setup` for you. To remove the lines, enter `shtl unsetup`. `make uninstall` does `shtl unsetup` for you.
 
-1. Open your rc file:
-   - On macOS, open `~/.bash_profile`.
-   - On other systems, open `~/.bashrc`.
+### The RC File
+
+`shtl setup` uses the rc file that your shell reads when it starts:
+
+- zsh: `$ZDOTDIR/.zshrc`. If you did not set `ZDOTDIR`, `~/.zshrc`.
+- bash on Linux: `~/.bashrc`.
+- bash on macOS: the first file from this list that is on the computer: `~/.bash_profile`, `~/.bash_login`, `~/.profile`. If there is no file, `shtl setup` makes `~/.bash_profile`.
+
+  If that file uses the `source` command or the `.` command to read `~/.bashrc`, `shtl setup` uses `~/.bashrc`.
+
+### Add the Lines Manually
+
+1. Open the rc file for your shell. Refer to [The RC File](#the-rc-file).
 2. Add these lines to the end of the file:
 
    ```sh
    # shtl: https://github.com/bitmvr-industries/shtl
    if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
    ```
+
+   For zsh, add the lines after `compinit`. If you add the lines before `compinit`, tab completion does not operate.
 
 3. Open a new terminal.
 
@@ -101,7 +105,7 @@ shtl - Help
   Usage: shtl ROUTE_NAME [SUBDIR]
          shtl COMMAND [ARGS]
 
-    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see init)
+    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see setup)
     add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory
                                     --persist allows a directory that doesn't exist yet, and clean skips the route
     update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory
@@ -111,7 +115,9 @@ shtl - Help
     persist NAME                    Toggle whether clean skips a route
     path NAME [SUBDIR]              Print a route's path (e.g. cp file "$(shtl path work)")
     doctor                          Check the routes file for problems
-    init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval "$(shtl init)"
+    setup                           Add the shell function to your shell's rc file (asks first)
+    unsetup                         Remove the shell function from your rc files (asks first)
+    init                            Print the shell function. setup adds it to your rc file for you
     help                            Display this information
     version                         Print the shtl version
 

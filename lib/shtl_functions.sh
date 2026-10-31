@@ -15,7 +15,7 @@ readonly SHTL_VERSION="__SHTL_VERSION__"
 
 # Subcommands. Route names can't use these, and the shell function from
 # `shtl init` passes them straight through to the script.
-readonly SHTL_COMMANDS="add update remove rm list ls clean persist path doctor init help version"
+readonly SHTL_COMMANDS="add update remove rm list ls clean persist path doctor setup unsetup init help version"
 
 
 # Prints "shtl [LEVEL] message" to stderr. The message is printed as-is, so
@@ -95,7 +95,7 @@ shtl_usage() {
 	echo "  Usage: shtl ROUTE_NAME [SUBDIR]"
 	echo "         shtl COMMAND [ARGS]"
 	echo ""
-	echo "    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see init)"
+	echo "    ROUTE_NAME [SUBDIR]             Jump to a route, or a folder under it (needs the shell function, see setup)"
 	echo "    add NAME [PATH] [-p|--persist]  Add a route. PATH must be absolute and defaults to the current directory"
 	echo "                                    --persist allows a directory that doesn't exist yet, and clean skips the route"
 	echo "    update NAME [PATH]              Point a route at a new absolute path. PATH defaults to the current directory"
@@ -105,7 +105,9 @@ shtl_usage() {
 	echo "    persist NAME                    Toggle whether clean skips a route"
 	echo "    path NAME [SUBDIR]              Print a route's path (e.g. cp file \"\$(shtl path work)\")"
 	echo "    doctor                          Check the routes file for problems"
-	echo "    init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
+	echo "    setup                           Add the shell function to your shell's rc file (asks first)"
+	echo "    unsetup                         Remove the shell function from your rc files (asks first)"
+	echo "    init                            Print the shell function. setup adds it to your rc file for you"
 	echo "    help                            Display this information"
 	echo "    version                         Print the shtl version"
 	echo ""
@@ -555,7 +557,7 @@ shtl_print_path(){
 # function from `shtl init`, print the path and explain how to set it up.
 shtl_route(){
 	shtl_print_path "$1" "$2" || return 1
-	shtl_log "WARN" "shtl can't change directory without its shell function. Add this to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
+	shtl_log "WARN" "shtl can't change directory without its shell function. To set it up, run: shtl setup"
 }
 
 # Reports routes file problems that can break shtl, with line numbers.
@@ -629,6 +631,176 @@ shtl_doctor(){
 	echo "Problems found in ${ROUTES_FILE}:"
 	printf '  %s\n' "${problems[@]}"
 	return 1
+}
+
+# The lines `shtl setup` adds to an rc file. The marker lets unsetup find them.
+readonly SHTL_RC_MARKER="# shtl: https://github.com/bitmvr-industries/shtl"
+# shellcheck disable=SC2016 # written to the rc file literally, expanded there
+readonly SHTL_RC_LINE='if command -v shtl >/dev/null; then eval "$(shtl init)"; fi'
+
+# The login file bash reads: the first of these that exists. If none exists,
+# ~/.bash_profile. Making ~/.bash_profile when ~/.profile exists would stop
+# bash from reading ~/.profile.
+shtl_bash_login_file() {
+	local file
+	for file in .bash_profile .bash_login .profile; do
+		if [[ -e $HOME/$file ]]; then
+			echo "$HOME/$file"
+			return 0
+		fi
+	done
+	echo "$HOME/.bash_profile"
+}
+
+# True when file $1 sources ~/.bashrc on a line that isn't a comment, e.g.
+# `[ -f ~/.bashrc ] && . ~/.bashrc` or `source "$HOME/.bashrc"`
+shtl_sources_bashrc() {
+	# shellcheck disable=SC2016 # $HOME is matched literally, not expanded
+	grep -Eqs '^[^#]*(^|[[:space:];&|{(])(source|\.)[[:space:]]+["'\'']?(~|\$HOME|\$\{HOME\})["'\'']?/\.bashrc(["'\''[:space:];&|)]|$)' "$1"
+}
+
+# Prints the rc files that the user's login shell reads at startup and that
+# setup can use, one per line. The last one is the file setup edits. Prints
+# nothing for shells other than bash and zsh.
+shtl_rc_files() {
+	local login
+	case $SHELL in
+		*/zsh)
+			echo "${ZDOTDIR:-$HOME}/.zshrc"
+			;;
+		*/bash)
+			# macOS terminals open login shells, which don't read ~/.bashrc
+			# unless the login file sources it. Linux terminals read ~/.bashrc.
+			if [[ $(uname) == Darwin ]]; then
+				login="$(shtl_bash_login_file)"
+				echo "$login"
+				if shtl_sources_bashrc "$login"; then
+					echo "$HOME/.bashrc"
+				fi
+			else
+				echo "$HOME/.bashrc"
+			fi
+			;;
+	esac
+}
+
+# Every rc file unsetup checks for the lines, wherever setup put them before
+shtl_all_rc_files() {
+	case $SHELL in
+		*/zsh) echo "${ZDOTDIR:-$HOME}/.zshrc" ;;
+		*/bash) printf '%s\n' "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile" "$HOME/.bashrc" ;;
+	esac
+}
+
+# Asks a yes/no question. No without a terminal, so scripts never edit files.
+shtl_confirm() {
+	local reply
+	[[ -t 0 ]] || return 1
+	read -r -p "$1 [y/N] " reply
+	[[ $reply == [yY] || $reply == [yY][eE][sS] ]]
+}
+
+shtl_print_rc_lines() {
+	echo ""
+	echo "    $SHTL_RC_MARKER"
+	echo "    $SHTL_RC_LINE"
+	echo ""
+	if [[ -L $1 ]]; then
+		echo "Note: $(shtl_contract_path "$1") is a symlink to $(readlink "$1"). The change will be made in that file."
+	fi
+}
+
+# Offers to add the shell function to the rc file of the user's shell
+shtl_setup() {
+	local files=() file rc shown
+	while IFS='' read -r file; do
+		files+=("$file")
+	done < <(shtl_rc_files)
+
+	if [[ ${#files[@]} -eq 0 ]]; then
+		echo "shtl's shell function supports bash and zsh. Without it, use: cd \"\$(shtl path ROUTE_NAME)\""
+		return 0
+	fi
+
+	for file in "${files[@]}"; do
+		if grep -qs 'shtl init' "$file"; then
+			echo "Shell integration already set up in $(shtl_contract_path "$file")"
+			return 0
+		fi
+	done
+
+	rc="${files[${#files[@]}-1]}"
+	shown="$(shtl_contract_path "$rc")"
+	echo "shtl needs these lines in $shown to change directories and tab-complete routes."
+	if [[ ${#files[@]} -gt 1 ]]; then
+		echo "$(shtl_contract_path "${files[0]}") sources ~/.bashrc, so the lines go in ~/.bashrc."
+	fi
+	shtl_print_rc_lines "$rc"
+
+	if shtl_confirm "Append them to the end of $shown?"; then
+		# Separate from existing content with a blank line, unless the file is empty
+		if [[ -s $rc ]]; then
+			echo "" >> "$rc"
+		fi
+		printf '%s\n%s\n' "$SHTL_RC_MARKER" "$SHTL_RC_LINE" >> "$rc"
+		echo "Added. Open a new terminal, or run: source $shown"
+	elif [[ $SHELL == */zsh ]]; then
+		echo "Skipped. To set it up yourself, add those lines to the end of $shown"
+		echo "(after compinit, so tab completion works), then open a new terminal."
+	else
+		echo "Skipped. To set it up yourself, add those lines to the end of $shown, then open a new terminal."
+	fi
+}
+
+# Removes the marker, the line after it, and the blank line setup added
+# before them. Writes back in place, so symlinks and permissions are kept.
+shtl_remove_rc_lines() {
+	local tmp
+	tmp="$(mktemp)" || return 1
+	awk -v marker="$SHTL_RC_MARKER" -v init="$SHTL_RC_LINE" '
+		{ lines[NR] = $0 }
+		END {
+			for (i = 1; i <= NR; i++) {
+				if (lines[i] == marker && lines[i + 1] == init) {
+					skip[i] = skip[i + 1] = 1
+					if (i > 1 && lines[i - 1] == "") skip[i - 1] = 1
+				}
+			}
+			for (i = 1; i <= NR; i++) if (!skip[i]) print lines[i]
+		}
+	' "$1" > "$tmp" && cat "$tmp" >| "$1"
+	rm -f "$tmp"
+}
+
+# Offers to remove the lines setup added, from each rc file that has them
+shtl_unsetup() {
+	local files=() file shown found=""
+	# Read the list first: the prompts below need stdin
+	while IFS='' read -r file; do
+		files+=("$file")
+	done < <(shtl_all_rc_files)
+
+	for file in "${files[@]}"; do
+		[[ -f $file ]] || continue
+		shown="$(shtl_contract_path "$file")"
+		if grep -qxF "$SHTL_RC_MARKER" "$file"; then
+			found=1
+			echo "$shown has shtl's shell integration lines."
+			shtl_print_rc_lines "$file"
+			if shtl_confirm "Remove them from $shown?"; then
+				shtl_remove_rc_lines "$file" && echo "Removed."
+			else
+				echo "Kept. The line is guarded, so it does nothing while shtl isn't installed."
+			fi
+		elif grep -qs 'shtl init' "$file"; then
+			found=1
+			echo "$shown runs 'shtl init'. setup didn't add that line, so remove it yourself."
+		fi
+	done
+
+	if [[ -z $found ]]; then
+		echo "No shtl lines in your rc files"
+	fi
 }
 
 # Prints the shell function and tab completion. Works in bash and zsh:

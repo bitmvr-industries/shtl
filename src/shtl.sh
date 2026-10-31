@@ -8,7 +8,7 @@ shift
 # These must work with a bad routes file: doctor checks the file itself,
 # and the others don't read it
 case $subcommand in
-	""|help|doctor|init|version) ;;
+	""|help|doctor|setup|unsetup|init|version) ;;
 	*) shtl_init ;;
 esac
 
@@ -56,6 +56,12 @@ case $subcommand in
 		;;
 	doctor)
 		shtl_doctor
+		;;
+	setup)
+		shtl_setup
+		;;
+	unsetup)
+		shtl_unsetup
 		;;
 	init)
 		shtl_print_init
