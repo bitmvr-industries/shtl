@@ -58,7 +58,7 @@ load test_helper
 }
 
 @test "add rejects names that are subcommands" {
-	for name in add update remove rm list ls clean persist path init help version; do
+	for name in add update remove rm list ls clean persist path doctor init help version; do
 		run shtl add "$name" "$DIR_A"
 		[ "$status" -eq 1 ]
 	done

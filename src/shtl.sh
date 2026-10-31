@@ -5,9 +5,10 @@ source lib/shtl_functions.sh
 subcommand="$1"
 shift
 
-# These don't read the routes file, so a bad one can't stop them
+# These must work with a bad routes file: doctor checks the file itself,
+# and the others don't read it
 case $subcommand in
-	""|help|init|version) ;;
+	""|help|doctor|init|version) ;;
 	*) shtl_init ;;
 esac
 
@@ -52,6 +53,9 @@ case $subcommand in
 	path)
 		shtl_validate_arguments "$@"
 		shtl_print_path "$1"
+		;;
+	doctor)
+		shtl_doctor
 		;;
 	init)
 		shtl_print_init

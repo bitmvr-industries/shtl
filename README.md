@@ -87,6 +87,7 @@ shtl - Help
     clean                           Interactively remove routes whose directories no longer exist
     persist NAME                    Toggle whether clean skips a route
     path NAME                       Print a route's path (e.g. cp file "$(shtl path work)")
+    doctor                          Check the routes file for problems
     init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval "$(shtl init)"
     help                            Display this information
     version                         Print the shtl version
@@ -103,6 +104,7 @@ shtl add nas /Volumes/nas --persist
 shtl work                  # jump there
 shtl ls                    # list routes
 shtl clean                 # remove routes whose directories are gone
+shtl doctor                # find problems in the routes file
 ```
 
 ## Routes File
@@ -139,6 +141,24 @@ A route name must not:
 - Contain `:`, `[`, or `]`.
 - Start with `-` or `#`.
 - Be the same as a `shtl` command, for example `add` or `list`.
+
+### Find Problems
+
+If you change the routes file in a text editor, make sure that `shtl` can read it. Enter this command:
+
+```sh
+shtl doctor
+```
+
+`shtl doctor` shows each problem and its line number. It does not change the routes file. Correct the problems in a text editor. `shtl doctor` finds these problems:
+
+- A first line that is not `# shtl routes v1`.
+- Windows line endings, or spaces or tabs at the end of a line.
+- A line that does not have the format `NAME[FLAGS]:PATH`.
+- A flag that is not `persist`.
+- A path that does not start with `/`.
+- A route name that is not correct, or that is the same as a `shtl` command.
+- Two routes that have the same name.
 
 ## How It Works
 

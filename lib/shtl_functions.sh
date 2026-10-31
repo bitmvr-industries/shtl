@@ -15,7 +15,7 @@ readonly SHTL_VERSION="__SHTL_VERSION__"
 
 # Subcommands. Route names can't use these, and the shell function from
 # `shtl init` passes them straight through to the script.
-readonly SHTL_COMMANDS="add update remove rm list ls clean persist path init help version"
+readonly SHTL_COMMANDS="add update remove rm list ls clean persist path doctor init help version"
 
 
 # Prints "shtl [LEVEL] message" to stderr. The message is printed as-is, so
@@ -44,7 +44,7 @@ shtl_init(){
 	if [[ $firstLine == "$ROUTES_HEADER" ]]; then
 		return 0
 	fi
-	shtl_log "ERROR" "${ROUTES_FILE} is not a shtl routes file. Its first line must be: ${ROUTES_HEADER}"
+	shtl_log "ERROR" "${ROUTES_FILE} is not a shtl routes file. Its first line must be: ${ROUTES_HEADER}. To find the problem, run: shtl doctor"
 	exit 1
 }
 
@@ -74,6 +74,7 @@ shtl_usage() {
 	echo "    clean                           Interactively remove routes whose directories no longer exist"
 	echo "    persist NAME                    Toggle whether clean skips a route"
 	echo "    path NAME                       Print a route's path (e.g. cp file \"\$(shtl path work)\")"
+	echo "    doctor                          Check the routes file for problems"
 	echo "    init                            Print the shell function. Add to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
 	echo "    help                            Display this information"
 	echo "    version                         Print the shtl version"
@@ -430,6 +431,78 @@ shtl_print_path(){
 shtl_route(){
 	shtl_print_path "$1" || return 1
 	shtl_log "WARN" "shtl can't change directory without its shell function. Add this to your ~/.zshrc or ~/.bashrc: eval \"\$(shtl init)\""
+}
+
+# Reports routes file problems that can break shtl, with line numbers.
+# It only reports: the user fixes the file in a text editor.
+shtl_doctor(){
+	local line trimmed stripped name flags path flag i
+	local lineNumber=0
+	local problems=() seenNames=() seenLines=() flagList=()
+	local entryPattern='^([^]:[]*)\[([^]]*)\]:(.*)$'
+	if [[ ! -f $ROUTES_FILE ]]; then
+		echo "There is no routes file yet. Nothing to check"
+		return 0
+	fi
+	while IFS='' read -r line || [[ -n $line ]]; do
+		lineNumber=$((lineNumber + 1))
+		if [[ $line == *$'\r'* ]]; then
+			problems+=("Line ${lineNumber}: has a Windows line ending (\\r). Save the file with Unix line endings")
+		fi
+		trimmed="${line//$'\r'/}"
+		stripped="${trimmed%"${trimmed##*[![:space:]]}"}"
+		# shtl ignores blank lines, but not on line 1, which must be the header
+		if [[ -z $stripped && $lineNumber -gt 1 ]]; then
+			continue
+		fi
+		if [[ $trimmed != "$stripped" ]]; then
+			problems+=("Line ${lineNumber}: ends with spaces or tabs. Remove them")
+		fi
+		if [[ $lineNumber -eq 1 ]]; then
+			if [[ $stripped != "$ROUTES_HEADER" ]]; then
+				problems+=("Line 1: must be: ${ROUTES_HEADER}")
+			fi
+			continue
+		fi
+		[[ $stripped == '#'* ]] && continue
+		if [[ ! $stripped =~ $entryPattern ]]; then
+			problems+=("Line ${lineNumber}: is not a route in the format NAME[FLAGS]:PATH")
+			continue
+		fi
+		name="${BASH_REMATCH[1]}"
+		flags="${BASH_REMATCH[2]}"
+		path="${BASH_REMATCH[3]}"
+		if ! shtl_is_valid_name_format "$name" || [[ $name == -* ]]; then
+			problems+=("Line ${lineNumber}: route name \"${name}\" is not valid. Names can't be empty, contain \":\", \"[\" or \"]\", or start with \"-\"")
+		elif shtl_is_command "$name"; then
+			problems+=("Line ${lineNumber}: route name \"${name}\" is a shtl command, so shtl can't go to this route. Rename it")
+		fi
+		for i in "${!seenNames[@]}"; do
+			if [[ ${seenNames[$i]} == "$name" ]]; then
+				problems+=("Line ${lineNumber}: route name \"${name}\" is also on line ${seenLines[$i]}. Remove or rename one of them")
+				break
+			fi
+		done
+		seenNames+=("$name")
+		seenLines+=("$lineNumber")
+		flagList=()
+		[[ -n $flags ]] && IFS=',' read -r -a flagList <<< "$flags"
+		for flag in "${flagList[@]}"; do
+			if [[ $flag != persist ]]; then
+				problems+=("Line ${lineNumber}: \"${flag}\" is not a flag. The only flag is persist")
+			fi
+		done
+		if [[ $path != /* ]]; then
+			problems+=("Line ${lineNumber}: path \"${path}\" is not absolute. It must start with \"/\"")
+		fi
+	done < "$ROUTES_FILE"
+	if [[ ${#problems[@]} -eq 0 ]]; then
+		echo "No problems found in ${ROUTES_FILE}"
+		return 0
+	fi
+	echo "Problems found in ${ROUTES_FILE}:"
+	printf '  %s\n' "${problems[@]}"
+	return 1
 }
 
 # Prints the shell function and tab completion. Works in bash and zsh:
