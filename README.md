@@ -1,4 +1,4 @@
-# SHTL
+# shtl
 
 [![CI](https://github.com/bitmvr-industries/shtl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bitmvr-industries/shtl/actions/workflows/ci.yml)
 
