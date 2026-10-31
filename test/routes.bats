@@ -220,7 +220,7 @@ load test_helper
 	shtl add axb "$DIR_A"
 	shtl add a.b "$DIR_A"
 	shtl update a.b "$DIR_B"
-	[ "$(routes)" = "a.b[]:$DIR_B"$'\n'"axb[]:$DIR_A" ]
+	[ "$(routes)" = "axb[]:$DIR_A"$'\n'"a.b[]:$DIR_B" ]
 }
 
 @test "update fails for an unknown route" {
@@ -351,7 +351,7 @@ load test_helper
 	shtl add axb "$DIR_A"
 	shtl add a.b "$DIR_B"
 	shtl persist a.b
-	[ "$(routes)" = "a.b[persist]:$DIR_B"$'\n'"axb[]:$DIR_A" ]
+	[ "$(routes)" = "axb[]:$DIR_A"$'\n'"a.b[persist]:$DIR_B" ]
 }
 
 @test "persist won't turn off for a route whose directory is missing" {

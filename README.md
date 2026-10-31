@@ -157,6 +157,8 @@ At this time, `persist` is the only flag. A route that has the `persist` flag ca
 
 The path is the last part of the line. Thus, the path can contain colons and all other characters.
 
+A line that starts with `#` is a comment. `shtl` does not change comments, blank lines, or the sequence of the routes. `shtl add` puts a new route at the end of the file. `shtl list` sorts the routes by name.
+
 ### Route Names
 
 A route name must not:

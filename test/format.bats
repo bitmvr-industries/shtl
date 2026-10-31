@@ -13,7 +13,7 @@ load test_helper
 	shtl add zeta "$DIR_A"
 	shtl add Alpha "$DIR_B"
 	[ "$(head -n 1 "$ROUTES_FILE")" = "# shtl routes v1" ]
-	[ "$(routes)" = "Alpha[]:$DIR_B"$'\n'"zeta[]:$DIR_A" ]
+	[ "$(routes)" = "zeta[]:$DIR_A"$'\n'"Alpha[]:$DIR_B" ]
 }
 
 @test "paths can contain colons" {
@@ -227,4 +227,31 @@ load test_helper
 	chmod 644 "$ROUTES_FILE"
 	shtl add work "$DIR_A"
 	[ -n "$(find "$ROUTES_FILE" -perm 644)" ]
+}
+
+# Hand edits survive (#2)
+
+@test "commands keep comments, blank lines and order" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" "" "# work stuff" "zz[]:$DIR_A" "aa[]:$DIR_A" "" "# other" "mm[]:$DIR_A" > "$ROUTES_FILE"
+	shtl update zz "$DIR_B"
+	shtl persist aa
+	shtl remove mm
+	shtl add new "$DIR_B"
+	[ "$(cat "$ROUTES_FILE")" = "$(printf '%s\n' "# shtl routes v1" "" "# work stuff" "zz[]:$DIR_B" "aa[persist]:$DIR_A" "" "# other" "new[]:$DIR_B")" ]
+}
+
+@test "add starts a new line when the file doesn't end with one" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n%s' "# shtl routes v1" "work[]:$DIR_A" > "$ROUTES_FILE"
+	shtl add home "$DIR_B"
+	[ "$(routes)" = "work[]:$DIR_A"$'\n'"home[]:$DIR_B" ]
+}
+
+@test "list is sorted even when the file isn't" {
+	mkdir -p "$(dirname "$ROUTES_FILE")"
+	printf '%s\n' "# shtl routes v1" "b[]:$DIR_A" "C[]:$DIR_A" "a[]:$DIR_A" > "$ROUTES_FILE"
+	[ "$(shtl list --names | tr '\n' ' ')" = "a b C " ]
+	run shtl list
+	[ "${lines[0]}" = "a  $DIR_A" ]
 }

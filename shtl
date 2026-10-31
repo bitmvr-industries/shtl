@@ -67,19 +67,25 @@ shtl_write_routes() {
 	return 1
 }
 
-# Header first, then routes sorted by name
-shtl_print_sorted_routes() {
-	echo "$ROUTES_HEADER"
-	shtl_get_entries | sort --ignore-case -t '[' -k1,1
+# The routes file keeps the user's order, comments and blank lines: each
+# command changes only its own line. Output is sorted when routes are read.
+
+# The routes file plus a new entry at the end. awk '1' adds a missing final
+# newline, so the entry can't join the last line.
+shtl_print_routes_with_entry() {
+	awk '1' "$ROUTES_FILE"
+	echo "$1"
 }
 
-shtl_refresh_routes() {
-	shtl_write_routes shtl_print_sorted_routes
+# The routes file with the named route's line replaced, in place
+shtl_print_routes_replacing() {
+	SHTL_ROUTE_NAME="$1" SHTL_NEW_ENTRY="$2" awk 'index($0, ENVIRON["SHTL_ROUTE_NAME"] "[") == 1 { print ENVIRON["SHTL_NEW_ENTRY"]; next } 1' "$ROUTES_FILE"
 }
 
-# Prints every route entry, skipping the header, comments and blank lines
+# Prints every route entry sorted by name, skipping the header, comments
+# and blank lines
 shtl_get_entries() {
-	awk '!/^#/ && /[^[:space:]]/' "$ROUTES_FILE"
+	awk '!/^#/ && /[^[:space:]]/' "$ROUTES_FILE" | sort --ignore-case -t '[' -k1,1
 }
 
 shtl_usage() {
@@ -271,7 +277,7 @@ shtl_add_route(){
 	local route
 	route="$(shtl_resolve_path "$2")" || return 1
 	shtl_check_route_dir "$route" "$3" "To add a route for a directory that will exist later, use --persist" || return 1
-	shtl_format_entry "$1" "$3" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes
+	shtl_write_routes shtl_print_routes_with_entry "$(shtl_format_entry "$1" "$3" "$route")"
 }
 
 shtl_delete_route() {
@@ -298,8 +304,7 @@ shtl_update_route() {
 	route="$(shtl_resolve_path "$providedPath")" || return 1
 	shtl_entry_is_persistent "$entry" && persistent="yes"
 	shtl_check_route_dir "$route" "$persistent" "To make this route persistent, run: shtl persist ${routeName}. Then run this update again" || return 1
-	shtl_remove_route_entry "$routeName" || return 1
-	shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route" >> "$ROUTES_FILE" && shtl_refresh_routes || return 1
+	shtl_write_routes shtl_print_routes_replacing "$routeName" "$(shtl_format_entry "$routeName" "$(shtl_get_entry_flags "$entry")" "$route")" || return 1
 	shtl_log "INFO" "Route \"${routeName}\" now points to ${route}"
 }
 
@@ -429,8 +434,7 @@ shtl_toggle_persist() {
 		flags="${flags:+${flags},}persist"
 	fi
 	newEntry="$(shtl_format_entry "$routeName" "$flags" "$(shtl_get_entry_path "$entry")")"
-	shtl_remove_route_entry "$routeName" || return 1
-	echo "$newEntry" >> "$ROUTES_FILE" && shtl_refresh_routes || return 1
+	shtl_write_routes shtl_print_routes_replacing "$routeName" "$newEntry" || return 1
 	if shtl_entry_is_persistent "$newEntry"; then
 		shtl_log "INFO" "Route \"${routeName}\" is now persistent. Clean will skip it"
 	else
