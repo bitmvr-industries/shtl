@@ -55,8 +55,8 @@ jobs:
       - name: Package
         run: |
           mkdir dist
-          cp "target/${{ matrix.target }}/release/shtl" LICENSE README.md dist/
-          tar -czf "shtl-${{ matrix.name }}.tar.gz" -C dist shtl LICENSE README.md
+          cp "target/${{ matrix.target }}/release/shtl" man/shtl.1 LICENSE README.md dist/
+          tar -czf "shtl-${{ matrix.name }}.tar.gz" -C dist shtl shtl.1 LICENSE README.md
       - uses: actions/upload-artifact@v7
         with:
           name: shtl-${{ matrix.name }}

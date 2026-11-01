@@ -1,0 +1,328 @@
+.TH SHTL 1 "2026-11-01" "shtl 2.0.0" "User Commands"
+.SH NAME
+shtl \- save directories as routes with short names, then go to them by name
+.SH SYNOPSIS
+.B shtl
+.I NAME
+.RI [ SUBDIR ]
+.br
+.B shtl
+.I COMMAND
+.RI [ ARGS ]
+.SH DESCRIPTION
+.B shtl
+saves directories as routes.
+A route is a short name for a directory.
+To go to the directory, enter the route name.
+.PP
+A program cannot change the directory of the shell that started it, so
+.B shtl
+has a shell function that does the
+.BR cd .
+Without the shell function,
+.B shtl
+.I NAME
+prints the path and a warning.
+Refer to
+.BR "SHELL FUNCTION" .
+.PP
+With no arguments,
+.B shtl
+prints the help text.
+.SH COMMANDS
+.TP
+\fBshtl\fR \fINAME\fR [\fISUBDIR\fR]
+Go to a route, or to a folder in it.
+.I SUBDIR
+is relative to the route.
+.TP
+\fBadd\fR \fINAME\fR [\fIPATH\fR] [\fB\-p\fR | \fB\-\-persist\fR]
+Add a route for this host.
+.I PATH
+must be absolute, or start with
+.BR ~/ .
+The default is the current directory.
+The directory must exist, unless you use
+.BR \-\-persist .
+A persistent route can go to a directory that does not exist yet, and
+.B clean
+does not remove it.
+.TP
+\fBupdate\fR \fINAME\fR [\fIPATH\fR]
+Change the path of a route on this host.
+.I PATH
+is the same as for
+.BR add .
+The route keeps its
+.B persist
+value.
+.TP
+\fBremove\fR | \fBrm\fR \fINAME\fR
+Remove a route from this host.
+.TP
+\fBlist\fR | \fBls\fR [\fB\-\-names\fR]
+Show the routes of this host, sorted by name.
+A
+.B *
+marks the route that you are in, and
+.B (persist)
+marks a persistent route.
+.B \-\-names
+prints only the names, for scripts and tab completion.
+.TP
+\fBclean\fR
+Show a checklist of the routes of this host whose directories do not exist, then remove the selected routes.
+It does not show persistent routes or routes without
+.BR hosts .
+This command needs a terminal.
+In the checklist, the arrow keys or
+.B j
+and
+.B k
+move,
+.B space
+toggles a route,
+.B a
+toggles all routes,
+.B enter
+removes the selected routes, and
+.B q
+cancels.
+.TP
+\fBpersist\fR \fINAME\fR
+Turn
+.B persist
+on or off for a route on this host.
+To turn it off, the directory must exist.
+.TP
+\fBpath\fR \fINAME\fR [\fISUBDIR\fR]
+Print the path of a route, or of a folder in it.
+The directory must exist.
+.TP
+\fBdoctor\fR
+Print the name of this host, and the problems in the routes file with their line numbers.
+It only reports: it does not change the file.
+.TP
+\fBsetup\fR
+Add the shell function to the rc file of your shell.
+It shows the change and asks first.
+.TP
+\fBunsetup\fR
+Remove the shell function from your rc files.
+It shows the change and asks first.
+.TP
+\fBinit\fR
+Print the shell function and the tab completion for bash and zsh.
+.TP
+\fBhelp\fR
+Print the help text.
+.TP
+\fBversion\fR
+Print the version.
+.SH SHELL FUNCTION
+The shell function does the
+.B cd
+and gives tab completion.
+.B shtl setup
+adds these lines to your rc file.
+To add them manually, put them at the end of the file.
+For zsh, put them after
+.BR compinit .
+.PP
+.EX
+# shtl: https://github.com/bitmvr-industries/shtl
+if command \-v shtl >/dev/null; then eval "$(shtl init)"; fi
+.EE
+.PP
+.B setup
+selects the rc file from your shell:
+.TP
+zsh
+.I $ZDOTDIR/.zshrc
+or
+.I ~/.zshrc
+.TP
+bash on Linux
+.I ~/.bashrc
+.TP
+bash on macOS
+The first of
+.IR ~/.bash_profile ,
+.IR ~/.bash_login ,
+.IR ~/.profile .
+If that file reads
+.IR ~/.bashrc ,
+then
+.IR ~/.bashrc .
+.SH ROUTES FILE
+Routes are in a TOML file:
+.PP
+.EX
+version = 2
+
+[[route]]
+name = "downloads"
+path = "~/Downloads"
+hosts = ["mbp"]
+
+[[route]]
+name = "downloads"
+path = "/var/tmp/downloads"
+hosts = ["midgard"]
+
+[[route]]
+name = "nas"
+path = "/Volumes/nas"
+persist = true
+.EE
+.TP
+.B version
+The version of the file format. It must be 2.
+.TP
+.B name
+A name must not be empty, start with
+.BR \- ,
+contain white space or control characters, or be a
+.B shtl
+command.
+.TP
+.B path
+An absolute path.
+.B ~
+is the home directory of the computer.
+.TP
+.B hosts
+Optional. The computers that use the route.
+.TP
+.B persist
+Optional. If true, the route can go to a directory that does not exist, and
+.B clean
+does not remove it.
+.PP
+.B shtl
+keeps comments, blank lines, and the sequence of the routes.
+If you change the file in a text editor, run
+.B shtl doctor
+to find problems.
+.SH HOSTS
+One routes file can operate on many computers, for example in a dotfiles repository.
+.PP
+A route with
+.B hosts
+operates only on these computers.
+A route without
+.B hosts
+operates on all computers.
+.B shtl
+does not make these routes: you add them in a text editor.
+If a route for this host and a route without
+.B hosts
+have the same name,
+.B shtl
+uses the route for this host.
+A new computer starts with no routes, because each route that
+.B shtl
+adds has
+.BR hosts .
+.PP
+The host name is the LocalHostName on macOS, and the host name before the first
+.B .\&
+on Linux.
+Case does not matter.
+.B shtl doctor
+shows the host name.
+.PP
+A command changes the routes of this host only:
+.TP
+.B add
+Adds this host to
+.BR hosts .
+If a route has the same name, path, and
+.B persist
+value,
+.B add
+puts this host in that route.
+.TP
+.BR update ", " persist
+Change the route if this host is the only host in it.
+If the route has other hosts,
+.B shtl
+removes this host from the route and adds a route for this host.
+.TP
+.B remove
+Removes this host from
+.BR hosts .
+If no hosts stay, it deletes the route.
+It deletes a route without
+.B hosts
+on all computers.
+.SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME
+If set, the routes file is in this directory instead of
+.IR ~/.config .
+.TP
+.B HOME
+The home directory, for
+.B ~
+in paths and for the default routes file and rc files.
+.TP
+.B ZDOTDIR
+If set,
+.B setup
+and
+.B unsetup
+use the zsh rc file in this directory.
+.SH FILES
+.TP
+.I ~/.config/shtl/routes.toml
+The routes file.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+An error, or
+.B doctor
+found a problem.
+.TP
+.B 130
+You pressed Ctrl\-C in the
+.B clean
+checklist.
+.PP
+Errors, warnings, and information messages go to standard error.
+.B doctor
+reports problems on standard output.
+.SH EXAMPLES
+Save the current directory as
+.B work
+and go to it:
+.PP
+.EX
+shtl add work
+shtl work
+.EE
+.PP
+Go to a folder in a route:
+.PP
+.EX
+shtl work code/api
+.EE
+.PP
+Copy a file to a route:
+.PP
+.EX
+cp file "$(shtl path work)"
+.EE
+.PP
+Add a route to a disk that is not mounted yet:
+.PP
+.EX
+shtl add nas /Volumes/nas \-\-persist
+.EE
+.SH SEE ALSO
+.BR cd (1)
+.PP
+https://github.com/bitmvr\-industries/shtl

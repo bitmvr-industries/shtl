@@ -22,7 +22,7 @@ Then open a new terminal.
 | Method | Install | Upgrade | Remove |
 |---|---|---|---|
 | Homebrew | `brew install bitmvr-industries/tap/shtl` | `brew upgrade shtl` | `shtl unsetup`, then `brew uninstall shtl` |
-| Release file | The `curl` command below | The `curl` command again | `shtl unsetup`, then delete `~/.local/bin/shtl` |
+| Release file | The `curl` command below | The `curl` command again | `shtl unsetup`, then delete `~/.local/bin/shtl` and `~/.local/share/man/man1/shtl.1` |
 | Source | `make install` | `git pull`, then `make install` | `make uninstall` |
 
 Release file, for macOS on Apple silicon and Linux on x86-64 or ARM64:
@@ -32,9 +32,9 @@ curl -fsSL https://raw.githubusercontent.com/bitmvr-industries/shtl/master/insta
 shtl setup
 ```
 
-`install.sh` downloads the file for your computer from the latest release, examines its checksum and installs `shtl` in `~/.local/bin`. `~/.local/bin` must be in your `PATH`.
+`install.sh` downloads the file for your computer from the latest release, examines its checksum and installs `shtl` in `~/.local/bin` and the manual page in `~/.local/share/man/man1`. `~/.local/bin` must be in your `PATH`.
 
-To install from the source, you must have [Rust](https://rustup.rs). `make install` builds `shtl` with `cargo`, installs it in `~/.local/bin` and does `shtl setup`. To use a different directory, set `PREFIX`, for example `sudo make install PREFIX=/usr/local`.
+To install from the source, you must have [Rust](https://rustup.rs). `make install` builds `shtl` with `cargo`, installs it and the manual page in `~/.local` and does `shtl setup`. To use a different directory, set `PREFIX`, for example `sudo make install PREFIX=/usr/local`.
 
 ## Shell Integration
 
@@ -70,6 +70,8 @@ if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
 | `shtl doctor` | Find problems in the routes file. |
 | `shtl setup`, `shtl unsetup` | Add or remove the shell function in your rc file. |
 | `shtl init`, `shtl help`, `shtl version` | Show the shell function, the help text, or the version. |
+
+For the full manual, enter `man shtl`.
 
 ## Routes File
 

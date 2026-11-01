@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# Installs the latest shtl release in ~/.local/bin:
+# Installs the latest shtl release in ~/.local/bin and its manual page in
+# ~/.local/share/man/man1:
 #   curl -fsSL https://raw.githubusercontent.com/bitmvr-industries/shtl/master/install.sh | sh
 # Picks the build for this OS and CPU and checks its checksum.
 
@@ -8,6 +9,7 @@ set -eu
 
 RELEASE_URL="https://github.com/bitmvr-industries/shtl/releases/latest/download"
 BIN_DIR="$HOME/.local/bin"
+MAN_DIR="$HOME/.local/share/man/man1"
 
 fail() {
 	echo "shtl install: $1" >&2
@@ -37,12 +39,13 @@ else
 	(cd "$tmp" && shasum -a 256 -c check.txt > /dev/null 2>&1) || fail "The checksum of $file is wrong. Nothing was installed"
 fi
 
-tar -xzf "$tmp/$file" -C "$tmp" shtl
-mkdir -p "$BIN_DIR"
+tar -xzf "$tmp/$file" -C "$tmp" shtl shtl.1
+mkdir -p "$BIN_DIR" "$MAN_DIR"
 # Replace the file, so a running shtl keeps its copy
 mv -f "$tmp/shtl" "$BIN_DIR/shtl"
+mv -f "$tmp/shtl.1" "$MAN_DIR/shtl.1"
 
-echo "Installed shtl in ~/.local/bin/shtl"
+echo "Installed shtl in ~/.local/bin/shtl. For its manual, run: man shtl"
 # shellcheck disable=SC2088 # the message shows ~ on purpose
 case ":$PATH:" in
 	*":$BIN_DIR:"*) ;;

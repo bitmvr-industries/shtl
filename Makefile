@@ -12,6 +12,7 @@ RELEASE_BIN=target/release/$(NAME)
 # sudo make install PREFIX=/usr/local
 PREFIX ?= $(HOME)/.local
 BIN_DIR=$(PREFIX)/bin
+MAN_DIR=$(PREFIX)/share/man/man1
 
 build:
 	@echo "$(TIMESTAMP) - Build: Starting"
@@ -27,6 +28,8 @@ install: build
 	@echo "$(TIMESTAMP) - Install: Starting"
 	@mkdir -p "$(BIN_DIR)"
 	@cp $(RELEASE_BIN) "$(BIN_DIR)/$(NAME)"
+	@mkdir -p "$(MAN_DIR)"
+	@cp man/$(NAME).1 "$(MAN_DIR)/$(NAME).1"
 	@echo "$(TIMESTAMP) - Install: Installed to $(BIN_DIR)/$(NAME)"
 	@case ":$$PATH:" in *":$(BIN_DIR):"*) ;; *) echo "$(TIMESTAMP) - Install: Warning: $(BIN_DIR) is not on your PATH" ;; esac
 	@echo "$(TIMESTAMP) - Install: Complete"
@@ -37,7 +40,7 @@ uninstall: build
 	@echo "$(TIMESTAMP) - Uninstall: Starting"
 	@$(RELEASE_BIN) unsetup
 	@echo ""
-	@rm -f "$(BIN_DIR)/$(NAME)"
+	@rm -f "$(BIN_DIR)/$(NAME)" "$(MAN_DIR)/$(NAME).1"
 	@echo "$(TIMESTAMP) - Uninstall: Complete"
 
 lint:
@@ -45,6 +48,7 @@ lint:
 	@cargo fmt --check
 	@cargo clippy --all-targets --quiet -- -D warnings
 	@shellcheck -x install.sh $(TEST_FILES) $(HOOK_FILES)
+	@mandoc -T lint -W warning man/$(NAME).1
 	@# bash 3.2 (macOS) doesn't fail a test on a false [[ ]] unless it's the last line
 	@! grep -nE '^[[:space:]]+\[\[ .* \]\][[:space:]]*$$' $(TEST_FILES) || { echo "$(TIMESTAMP) - Lint: End these test assertions with || false"; exit 1; }
 	@echo "$(TIMESTAMP) - Lint: Finished"

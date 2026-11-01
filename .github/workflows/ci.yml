@@ -22,6 +22,8 @@ jobs:
           curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" | tar -xJ
           sudo mv "shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/
           shellcheck --version
+      - name: Install mandoc
+        run: sudo apt-get update && sudo apt-get install -y mandoc
       - run: make lint
 
   # Linux only. macOS is covered by running `make test` locally, which also

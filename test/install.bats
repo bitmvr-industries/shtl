@@ -60,7 +60,8 @@ release_file() {
 	mkdir -p "$dir"
 	printf '#!/bin/sh\necho "fake shtl %s"\n' "$1" > "$dir/shtl"
 	chmod +x "$dir/shtl"
-	tar -czf "$RELEASE_DIR/shtl-$1.tar.gz" -C "$dir" shtl
+	echo "fake page $1" > "$dir/shtl.1"
+	tar -czf "$RELEASE_DIR/shtl-$1.tar.gz" -C "$dir" shtl shtl.1
 }
 
 install_on() {
@@ -83,6 +84,28 @@ install_on() {
 	install_on Darwin arm64
 	[ "$status" -eq 0 ]
 	[ "$("$HOME/.local/bin/shtl")" = "fake shtl darwin-arm64" ]
+}
+
+@test "install adds the manual page where man finds it" {
+	install_on Linux x86_64
+	[ "$status" -eq 0 ]
+	[ "$(cat "$HOME/.local/share/man/man1/shtl.1")" = "fake page linux-amd64" ]
+	[[ $output == *"man shtl"* ]] || false
+}
+
+@test "install replaces an older manual page" {
+	mkdir -p "$HOME/.local/share/man/man1"
+	echo old > "$HOME/.local/share/man/man1/shtl.1"
+	install_on Linux x86_64
+	[ "$(cat "$HOME/.local/share/man/man1/shtl.1")" = "fake page linux-amd64" ]
+}
+
+@test "install adds no manual page when the checksum is wrong" {
+	release_file linux-amd64-other
+	mv "$RELEASE_DIR/shtl-linux-amd64-other.tar.gz" "$RELEASE_DIR/shtl-linux-amd64.tar.gz"
+	install_on Linux x86_64
+	[ "$status" -eq 1 ]
+	[ ! -e "$HOME/.local/share/man/man1/shtl.1" ]
 }
 
 @test "install downloads from the latest release" {
