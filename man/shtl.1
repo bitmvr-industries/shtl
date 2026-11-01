@@ -124,15 +124,30 @@ The shell function does the
 .B cd
 and gives tab completion.
 .B shtl setup
-adds these lines to your rc file.
+adds the lines for your shell to your rc file.
 To add them manually, put them at the end of the file.
-For zsh, put them after
-.BR compinit .
+.PP
+For bash:
 .PP
 .EX
 # shtl: https://github.com/bitmvr-industries/shtl
-eval "$(PATH="$PATH:$HOME/.local/bin" shtl init 2>/dev/null)"
+shtl() { unset \-f shtl; eval "$(command shtl init 2>/dev/null)"; shtl "$@"; }; _shtl() { local s; s="$(command shtl init 2>/dev/null)" || return; unset \-f _shtl; eval "$s"; _shtl "$@"; }; complete \-F _shtl shtl
 .EE
+.PP
+For zsh, put them after
+.BR compinit :
+.PP
+.EX
+# shtl: https://github.com/bitmvr-industries/shtl
+shtl() { unset \-f shtl; eval "$(command shtl init 2>/dev/null)"; shtl "$@"; }; _shtl() { local s; s="$(command shtl init 2>/dev/null)" || return; unset \-f _shtl; eval "$s"; _shtl "$@"; }; if (( $+functions[compdef] )); then compdef _shtl shtl; fi
+.EE
+.PP
+These lines do not start
+.B shtl
+until you use it.
+Thus, a line that changes your
+.B PATH
+can be after these lines.
 .PP
 .B setup
 selects the rc file from your shell:

@@ -48,12 +48,23 @@ A script cannot change the directory of your shell. Thus, `shtl` has a shell fun
 | bash on Linux | `~/.bashrc` |
 | bash on macOS | The first of `~/.bash_profile`, `~/.bash_login`, `~/.profile`. If that file reads `~/.bashrc`, then `~/.bashrc`. |
 
-To add the shell function manually, add these lines to the end of your rc file. For zsh, add them after `compinit`.
+To add the shell function manually, add the lines for your shell to the end of your rc file.
+
+For bash:
 
 ```sh
 # shtl: https://github.com/bitmvr-industries/shtl
-eval "$(PATH="$PATH:$HOME/.local/bin" shtl init 2>/dev/null)"
+shtl() { unset -f shtl; eval "$(command shtl init 2>/dev/null)"; shtl "$@"; }; _shtl() { local s; s="$(command shtl init 2>/dev/null)" || return; unset -f _shtl; eval "$s"; _shtl "$@"; }; complete -F _shtl shtl
 ```
+
+For zsh, add the lines after `compinit`:
+
+```sh
+# shtl: https://github.com/bitmvr-industries/shtl
+shtl() { unset -f shtl; eval "$(command shtl init 2>/dev/null)"; shtl "$@"; }; _shtl() { local s; s="$(command shtl init 2>/dev/null)" || return; unset -f _shtl; eval "$s"; _shtl "$@"; }; if (( $+functions[compdef] )); then compdef _shtl shtl; fi
+```
+
+These lines do not start `shtl` until you use it. Thus, a line that changes your `PATH` can be after these lines.
 
 ## Commands
 

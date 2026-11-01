@@ -8,10 +8,22 @@ use crate::paths;
 
 /// The lines setup adds. The marker lets unsetup find them.
 pub const MARKER: &str = "# shtl: https://github.com/bitmvr-industries/shtl";
-/// Login shells can read the rc file before ~/.local/bin is on PATH: the stock
-/// Ubuntu ~/.profile does. So the line looks there too, and does nothing while
-/// shtl isn't installed.
-pub const INIT_LINE: &str = r#"eval "$(PATH="$PATH:$HOME/.local/bin" shtl init 2>/dev/null)""#;
+/// Placeholders for the functions in `shtl init`. Each one loads the real
+/// functions on its first call, then passes the call on. The rc file can't run
+/// shtl itself: PATH may change after it, e.g. the stock Ubuntu ~/.profile reads
+/// ~/.bashrc before it adds ~/.local/bin. While shtl isn't installed, the `shtl`
+/// call reports that once, and the `_shtl` placeholder stays so Tab is quiet.
+const PLACEHOLDERS: &str = r#"shtl() { unset -f shtl; eval "$(command shtl init 2>/dev/null)"; shtl "$@"; }; _shtl() { local s; s="$(command shtl init 2>/dev/null)" || return; unset -f _shtl; eval "$s"; _shtl "$@"; }"#;
+
+/// The line after the marker: the placeholders, and completion for this shell
+fn init_line(shell: &str) -> String {
+    let completion = if shell.ends_with("/zsh") {
+        "if (( $+functions[compdef] )); then compdef _shtl shtl; fi"
+    } else {
+        "complete -F _shtl shtl"
+    };
+    format!("{PLACEHOLDERS}; {completion}")
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Os {
@@ -138,7 +150,7 @@ fn confirm(question: &str) -> bool {
 }
 
 fn print_rc_lines(file: &Path) {
-    println!("\n    {MARKER}\n    {INIT_LINE}\n");
+    println!("\n    {MARKER}\n    {}\n", init_line(&env("SHELL")));
     if let Ok(target) = std::fs::read_link(file) {
         println!(
             "Note: {} is a symlink to {}. The change will be made in that file.",
@@ -186,7 +198,7 @@ pub fn setup() -> Result<(), String> {
             .map_err(failed)?;
         // Separate from existing content with a blank line
         let blank = if not_empty { "\n" } else { "" };
-        write!(file, "{blank}{MARKER}\n{INIT_LINE}\n").map_err(failed)?;
+        write!(file, "{blank}{MARKER}\n{}\n", init_line(&shell)).map_err(failed)?;
         println!("Added. Open a new terminal, or run: source {rc_shown}");
     } else if shell.ends_with("/zsh") {
         println!("Skipped. To set it up yourself, add those lines to the end of {rc_shown}");
@@ -220,7 +232,7 @@ pub fn unsetup() -> Result<(), String> {
                 println!("Removed.");
             } else {
                 println!(
-                    "Kept. The line is guarded, so it does nothing while shtl isn't installed."
+                    "Kept. The line is safe while shtl isn't installed: it runs shtl only when you use it."
                 );
             }
         } else if text.contains("shtl init") {
@@ -365,9 +377,10 @@ mod tests {
 
     #[test]
     fn remove_rc_lines_takes_the_lines_and_the_blank_line_before() {
-        let text = format!("export B=1\n\n{MARKER}\n{INIT_LINE}\nexport C=1\n");
+        let line = init_line("/bin/bash");
+        let text = format!("export B=1\n\n{MARKER}\n{line}\nexport C=1\n");
         assert_eq!(remove_rc_lines(&text), "export B=1\nexport C=1\n");
-        let text = format!("{MARKER}\n{INIT_LINE}\n");
+        let text = format!("{MARKER}\n{line}\n");
         assert_eq!(remove_rc_lines(&text), "");
     }
 
