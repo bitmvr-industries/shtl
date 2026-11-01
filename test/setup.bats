@@ -8,7 +8,7 @@
 load test_helper
 
 MARKER="# shtl: https://github.com/bitmvr-industries/shtl"
-INIT_LINE='if command -v shtl >/dev/null; then eval "$(shtl init)"; fi'
+INIT_LINE='eval "$(PATH="$PATH:$HOME/.local/bin" shtl init 2>/dev/null)"'
 
 use_zsh() {
 	use_test_home
@@ -122,7 +122,54 @@ answer() {
 	[[ $output == *"Note: ~/.zshrc is a symlink to $HOME/dotfiles/zshrc. The change will be made in that file."* ]] || false
 }
 
+# Login shells
+
+# Writes the order of the stock Ubuntu ~/.profile: it reads ~/.bashrc first and
+# adds ~/.local/bin to PATH after that
+use_ubuntu_profile() {
+	use_bash
+	cat > "$HOME/.profile" <<-'EOF'
+		if [ -n "$BASH_VERSION" ]; then
+		    if [ -f "$HOME/.bashrc" ]; then
+		        . "$HOME/.bashrc"
+		    fi
+		fi
+		if [ -d "$HOME/.local/bin" ] ; then
+		    PATH="$HOME/.local/bin:$PATH"
+		fi
+	EOF
+	touch "$HOME/.bashrc"
+}
+
+# What `type -t shtl` says in a new login shell with a minimal PATH
+login_shell_type() {
+	run env -i HOME="$HOME" PATH=/usr/bin:/bin /bin/bash -l -c 'type -t shtl'
+}
+
+@test "the lines give the shell function at login on stock Ubuntu" {
+	use_ubuntu_profile
+	mkdir -p "$HOME/.local/bin"
+	cp "$(command -v shtl)" "$HOME/.local/bin/shtl"
+	answer setup y
+	login_shell_type
+	[ "$output" = function ]
+}
+
+@test "the lines do nothing when shtl isn't installed" {
+	use_ubuntu_profile
+	answer setup y
+	login_shell_type
+	[ "$output" = "" ]
+}
+
 # Removing the lines
+
+@test "unsetup removes the guarded line of older versions" {
+	use_bash
+	printf 'export B=1\n\n%s\n%s\n' "$MARKER" 'if command -v shtl >/dev/null; then eval "$(shtl init)"; fi' > "$HOME/.bashrc"
+	answer unsetup y
+	[ "$(cat "$HOME/.bashrc")" = 'export B=1' ]
+}
 
 @test "unsetup removes the lines and the blank line before them" {
 	use_bash

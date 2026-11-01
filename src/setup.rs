@@ -8,7 +8,10 @@ use crate::paths;
 
 /// The lines setup adds. The marker lets unsetup find them.
 pub const MARKER: &str = "# shtl: https://github.com/bitmvr-industries/shtl";
-pub const INIT_LINE: &str = r#"if command -v shtl >/dev/null; then eval "$(shtl init)"; fi"#;
+/// Login shells can read the rc file before ~/.local/bin is on PATH: the stock
+/// Ubuntu ~/.profile does. So the line looks there too, and does nothing while
+/// shtl isn't installed.
+pub const INIT_LINE: &str = r#"eval "$(PATH="$PATH:$HOME/.local/bin" shtl init 2>/dev/null)""#;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Os {
@@ -94,7 +97,7 @@ pub fn remove_rc_lines(text: &str) -> String {
     let lines: Vec<&str> = text.lines().collect();
     let mut skip = vec![false; lines.len()];
     for i in 0..lines.len() {
-        if lines[i] == MARKER && lines.get(i + 1) == Some(&INIT_LINE) {
+        if lines[i] == MARKER && lines.get(i + 1).is_some_and(|l| l.contains("shtl init")) {
             skip[i] = true;
             skip[i + 1] = true;
             if i > 0 && lines[i - 1].is_empty() {

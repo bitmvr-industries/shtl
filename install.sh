@@ -46,9 +46,13 @@ mv -f "$tmp/shtl" "$BIN_DIR/shtl"
 mv -f "$tmp/shtl.1" "$MAN_DIR/shtl.1"
 
 echo "Installed shtl in ~/.local/bin/shtl. For its manual, run: man shtl"
-# shellcheck disable=SC2088 # the message shows ~ on purpose
+# shellcheck disable=SC2088 # the messages show ~ on purpose
 case ":$PATH:" in
-	*":$BIN_DIR:"*) ;;
-	*) echo "~/.local/bin is not on your PATH. Add it in your shell's rc file." ;;
+	*":$BIN_DIR:"*)
+		echo "To add the shell function to your rc file, run: shtl setup"
+		;;
+	*)
+		echo "~/.local/bin is not on your PATH. Add it in your shell's rc file."
+		echo "To add the shell function to your rc file, run: ~/.local/bin/shtl setup"
+		;;
 esac
-echo "To add the shell function to your rc file, run: shtl setup"

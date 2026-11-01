@@ -52,7 +52,7 @@ To add the shell function manually, add these lines to the end of your rc file. 
 
 ```sh
 # shtl: https://github.com/bitmvr-industries/shtl
-if command -v shtl >/dev/null; then eval "$(shtl init)"; fi
+eval "$(PATH="$PATH:$HOME/.local/bin" shtl init 2>/dev/null)"
 ```
 
 ## Commands

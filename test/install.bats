@@ -164,3 +164,10 @@ install_on() {
 	PATH="$HOME/.local/bin:$PATH" install_on Linux x86_64
 	[[ $output != *"not on your PATH"* ]] || false
 }
+
+@test "install gives a setup command that runs when ~/.local/bin is not on PATH" {
+	install_on Linux x86_64
+	[[ $output == *"run: ~/.local/bin/shtl setup"* ]] || false
+	PATH="$HOME/.local/bin:$PATH" install_on Linux x86_64
+	[[ $output == *"run: shtl setup"* ]] || false
+}
