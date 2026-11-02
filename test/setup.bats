@@ -214,8 +214,10 @@ first_tab() {
 	add_route work "$DIR_A"
 	answer setup y
 	echo "$BREW_PATH" >> "$HOME/.zshrc"
-	# No compinit in this rc file, so this also shows the lines don't need it
-	run env -i HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" TERM=dumb PATH=/usr/bin:/bin "$(command -v zsh)" -i -c 'shtl work && pwd'
+	# -d skips the global rc files: Ubuntu's runs compinit, and its messages about
+	# the runner's directories would be in the output. With no compinit at all,
+	# this also shows the lines don't need it.
+	run env -i HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" TERM=dumb PATH=/usr/bin:/bin "$(command -v zsh)" -d -i -c 'shtl work && pwd'
 	[ "$output" = "$DIR_A" ]
 }
 
@@ -274,7 +276,7 @@ first_tab() {
 	printf 'autoload -Uz compinit; compinit -u\nunsetopt beep\n' > "$HOME/.zshrc"
 	answer setup y
 	echo "$BREW_PATH" >> "$HOME/.zshrc"
-	first_tab "$(command -v zsh) -i"
+	first_tab "$(command -v zsh) -d -i"
 	[ "$status" -eq 0 ]
 	[ "$output" = "$DIR_A" ]
 }
